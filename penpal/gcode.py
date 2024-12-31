@@ -2,13 +2,13 @@ import random, re
 from penpal.utils import hex_to_color_name
 
 class GCode:
-    def __init__(self, canvas):
+    def __init__(self, canvas, draw_speed=8000):
         self.canvas = canvas
         self.state_x = 0
         self.state_y = 0
         self.state_z = 1.0
         self.precision = 0.01
-        self.draw_speed = 8000
+        self.draw_speed = draw_speed
         self.move_speed = 30000
         self.gcode = []
         self.verbose = True
@@ -81,15 +81,17 @@ class GCode:
             self.multi_gcode[color] = self.gcode.copy()
 
     def save(self, filename):   
-        #   remove extension from filename (file can have many . so we only need to remove last one)    
-        filename = filename.split(".")[-1]
+        print(f"Saving gcode to {filename}")
+        filename = ".".join(filename.split(".")[:-1])
+        print(f"Filename stem: {filename}")
         for color in self.multi_gcode:
             self.gcode = self.multi_gcode[color].copy()
             # makes sure color contains only alphanumeric characters    
             color_for_filename = hex_to_color_name(color)
+            # remove # from color_for_filename
+            color = color.replace("#", "")
 
-
-            with open(f"{filename}_{color_for_filename}.gcode", "w") as f:
+            with open(f"{filename}_{color}_{color_for_filename}.gcode", "w") as f:
                 for line in self.gcode:
                     f.write(line + "\n")
                 

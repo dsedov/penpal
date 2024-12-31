@@ -51,7 +51,6 @@ class SVG:
 
             for segment in path:
                 if isinstance(segment, Line):
-                    print("line")
                     # Original points
                     sx, sy = segment.start.real, segment.start.imag
                     ex, ey = segment.end.real, segment.end.imag
@@ -64,7 +63,6 @@ class SVG:
                     canvas.line(sx_t, sy_t, ex_t, ey_t, color=stroke_color)
                 
                 elif isinstance(segment, CubicBezier):
-                    print("cubic bezier")
                     # Original points
                     sx,  sy  = segment.start.real,    segment.start.imag
                     c1x, c1y = segment.control1.real, segment.control1.imag
@@ -87,7 +85,6 @@ class SVG:
                     )
 
                 elif isinstance(segment, Arc):
-                    print("arc")
                     # We'll approximate the arc by sampling points along its parameter [0..1].
                     # Then we draw small line segments between consecutive sample points.
 
@@ -121,7 +118,6 @@ class SVG:
                         canvas.line(sx_t, sy_t, ex_t, ey_t, color=stroke_color)
 
                 elif isinstance(segment, Path):
-                    print("path")
                     # Example: If Path is line-like, transform similarly
                     sx, sy = segment.start.real, segment.start.imag
                     ex, ey = segment.end.real, segment.end.imag

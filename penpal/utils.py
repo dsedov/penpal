@@ -1,10 +1,102 @@
+import math
+
+class Optimizations:
+    @staticmethod
+    def are_points_collinear(p1, p2, p3, tolerance=0.1):
+        """
+        Check if three points are approximately collinear within a tolerance.
+        Uses the area of the triangle formed by the three points.
+        """
+        # Calculate the area of the triangle formed by the three points
+        area = abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - 
+                   (p3[0] - p1[0]) * (p2[1] - p1[1])) / 2.0
+        
+        # Calculate the lengths of the sides
+        len1 = math.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
+        len2 = math.sqrt((p3[0] - p2[0])**2 + (p3[1] - p2[1])**2)
+        
+        # Normalize area by the lengths to get a more meaningful tolerance
+        if len1 * len2 > 0:
+            normalized_area = area / (len1 * len2)
+            return normalized_area <= tolerance
+        return True
+
+    @staticmethod
+    def have_same_properties(line1, line2):
+        """Check if two lines have the same visual properties."""
+        return (line1["color"] == line2["color"] and 
+                line1["thickness"] == line2["thickness"])
+
+    @staticmethod
+    def merge_lines(canvas, tolerance=0.1):
+        """
+        Merge consecutive line segments in the canvas's draw stack that form
+        approximately straight lines within the given tolerance.
+        """
+        if not canvas.draw_stack:
+            return
+
+        new_stack = []
+        current_line = None
+        
+        for item in canvas.draw_stack:
+            if item["type"] != "line":
+                # If we were building a line, add it to new stack
+                if current_line is not None:
+                    new_stack.append(current_line)
+                    current_line = None
+                new_stack.append(item)
+                continue
+
+            if current_line is None:
+                current_line = item.copy()
+                continue
+
+            # Check if the lines have the same properties
+            if not Optimizations.have_same_properties(current_line, item):
+                new_stack.append(current_line)
+                current_line = item.copy()
+                continue
+
+            # Check if the lines are connected
+            if (current_line["x2"] == item["x1"] and 
+                current_line["y2"] == item["y1"]):
+                
+                # Check if the three points are collinear
+                p1 = (current_line["x1"], current_line["y1"])
+                p2 = (current_line["x2"], current_line["y2"])
+                p3 = (item["x2"], item["y2"])
+                
+                if Optimizations.are_points_collinear(p1, p2, p3, tolerance):
+                    # Merge the lines by extending the current line
+                    current_line["x2"] = item["x2"]
+                    current_line["y2"] = item["y2"]
+                else:
+                    # Lines aren't collinear enough, add current line and start new one
+                    new_stack.append(current_line)
+                    current_line = item.copy()
+            else:
+                # Lines aren't connected, add current line and start new one
+                new_stack.append(current_line)
+                current_line = item.copy()
+
+        # Add the last line if there is one
+        if current_line is not None:
+            new_stack.append(current_line)
+
+        # Update the canvas's draw stack
+        canvas.draw_stack = new_stack
+
+
+
+
 def hex_to_rgb(hex_color):
     """Convert hex color string to RGB tuple."""
     hex_color = hex_color.lstrip('#')
 
     if len(hex_color) == 3:
         hex_color = ''.join(c * 2 for c in hex_color)
-        
+
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
 def color_distance(c1, c2):
