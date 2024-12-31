@@ -13,6 +13,8 @@ margin = 15.0
 plotted_width_mm = canvas.canvas_size_mm[0] - margin*2
 plotted_height_mm = canvas.canvas_size_mm[1] - margin*2
 
+
+# Generate artwork
 total_x_offset = 0.0
 total_y_offset = 0.0
 box_size = 20.0
@@ -56,12 +58,19 @@ for y in np.arange(margin, plotted_height_mm, box_size_y):
     chance_of_skip += chance_of_skip_increase
     chance_of_fill += chance_of_fill_increase
 
+# Add signature
+svg = SVG("ny.svg")
+svg.draw(canvas, 5, 300, scale=0.5, flip_y=True)
 
+svg = SVG("signature.svg")
+svg.draw(canvas, 5, 10, scale=0.5, flip_y=True)
+
+# Render preview
 render = Render(canvas)
 render.render()
 render.show()
 
-
+# Generate GCode
 gcode = GCode(canvas)
 gcode.generate()
 gcode.save("genuary_01.gcode")

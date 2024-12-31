@@ -5,8 +5,9 @@ class Canvas:
         self.paper_color = paper_color
         self.pen_color = pen_color
         self.draw_stack = []
+        self.tolerance = 0.2
 
-    def line(self, x1, y1, x2, y2, color=None, thickness=1.0):
+    def line(self, x1, y1, x2, y2, color=None, thickness=0.5):
         self.draw_stack.append({
             "type": "line",
             "x1": x1,
@@ -16,6 +17,104 @@ class Canvas:
             "color": color,
             "thickness": thickness
         })
+
+    def cubic_bezier(self, x1, y1, x2, y2, x3, y3, x4, y4, color=None, thickness=1.0):
+        """
+        Approximates the cubic Bézier curve (x1,y1)-(x2,y2)-(x3,y3)-(x4,y4)
+        with line segments to within self.tolerance, and draws them using
+        self.line(...).
+        """
+
+        import math
+
+        def is_flat_enough(p1, p2, p3, p4, tolerance):
+            """
+            Checks if the control polygon p1->p2->p3->p4 is 'flat enough'
+            by measuring the distance of p2 and p3 from the line p1->p4.
+            """
+            (x1, y1), (x2, y2), (x3, y3), (x4, y4) = p1, p2, p3, p4
+            
+            # Vector from p1 to p4
+            dx = x4 - x1
+            dy = y4 - y1
+            seg_len = math.hypot(dx, dy)
+            
+            # Degenerate case: p1 == p4
+            if seg_len < 1e-14:
+                return True
+            
+            def dist_point_to_line(px, py):
+                # Distance via the cross-product method
+                return abs(dx*(py - y1) - dy*(px - x1)) / seg_len
+            
+            # Distances for p2, p3
+            d2 = dist_point_to_line(x2, y2)
+            d3 = dist_point_to_line(x3, y3)
+            
+            return (d2 <= tolerance) and (d3 <= tolerance)
+
+        def subdivide_cubic_bezier(p1, p2, p3, p4):
+            """
+            Subdivide a cubic Bézier at t=0.5 using De Casteljau's algorithm.
+            Returns (left_p1, left_p2, left_p3, left_p4), (right_p1, right_p2, right_p3, right_p4)
+            """
+            (x1, y1) = p1
+            (x2, y2) = p2
+            (x3, y3) = p3
+            (x4, y4) = p4
+            
+            # First-level midpoints
+            x12 = 0.5 * (x1 + x2)
+            y12 = 0.5 * (y1 + y2)
+            x23 = 0.5 * (x2 + x3)
+            y23 = 0.5 * (y2 + y3)
+            x34 = 0.5 * (x3 + x4)
+            y34 = 0.5 * (y3 + y4)
+            
+            # Second-level midpoints
+            x123 = 0.5 * (x12 + x23)
+            y123 = 0.5 * (y12 + y23)
+            x234 = 0.5 * (x23 + x34)
+            y234 = 0.5 * (y23 + y34)
+            
+            # Third-level midpoint
+            x1234 = 0.5 * (x123 + x234)
+            y1234 = 0.5 * (y123 + y234)
+            
+            left  = ((x1, y1), (x12, y12), (x123, y123), (x1234, y1234))
+            right = ((x1234, y1234), (x234, y234), (x34, y34), (x4, y4))
+            return left, right
+
+        def approximate_cubic_bezier(p1, p2, p3, p4, tolerance):
+            """
+            Recursively approximates the Bézier curve defined by control points
+            p1, p2, p3, p4 to within 'tolerance'. Returns a list of points.
+            """
+            if is_flat_enough(p1, p2, p3, p4, tolerance):
+                # Flat enough: just [start, end]
+                return [p1, p4]
+            else:
+                # Subdivide and recurse
+                left, right = subdivide_cubic_bezier(p1, p2, p3, p4)
+                left_points  = approximate_cubic_bezier(*left,  tolerance)
+                right_points = approximate_cubic_bezier(*right, tolerance)
+                # Combine, removing the duplicate midpoint
+                return left_points[:-1] + right_points
+        
+        # 1) Get all the approximation points
+        p1 = (x1, y1)
+        p2 = (x2, y2)
+        p3 = (x3, y3)
+        p4 = (x4, y4)
+        points = approximate_cubic_bezier(p1, p2, p3, p4, self.tolerance / 30.0)
+
+        # 2) Draw line segments between consecutive points
+        for i in range(len(points) - 1):
+            start = points[i]
+            end   = points[i + 1]
+            self.line(start[0], start[1], end[0], end[1], color, thickness)
+
+
     def box2(self, x, y, w, h, color=None, thickness=1.0, filled=False, fill_direction='horizontal'):
         # Draw the box outline
         self.line(x, y, x + w, y, color, thickness)
