@@ -123,7 +123,8 @@ def hex_to_color_name(hex_color):
         'navy': '#000080',
         'teal': '#008080'
     }
-    
+    if isinstance(hex_color, type(None)):
+        return 'unknown'
     # Convert input hex to RGB
     try:
         target_rgb = hex_to_rgb(hex_color)

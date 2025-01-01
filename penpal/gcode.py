@@ -24,7 +24,7 @@ class GCode:
         self._dwell()
 
 
-    def generate(self, shake_pen=0.0):
+    def generate(self):
         grouped_by_color = {}
         for op in self.canvas.draw_stack:
             if op["type"] == "line":
@@ -35,16 +35,13 @@ class GCode:
         for color in grouped_by_color:
             self.gcode = self.saved_gcode_state.copy()
             print(f"Color: {color}")
-            shake_pen_x_offset = random.uniform(-shake_pen, shake_pen)
-            shake_pen_y_offset = random.uniform(-shake_pen, shake_pen)
-            previous_shake_pen_x_offset = shake_pen_x_offset
-            previous_shake_pen_y_offset = shake_pen_y_offset
+
             for op in grouped_by_color[color]:
                 if op["type"] == "line":
-                    line_start_x = op["x1"] + previous_shake_pen_x_offset
-                    line_start_y = op["y1"] + previous_shake_pen_y_offset
-                    line_end_x = op["x2"] + shake_pen_x_offset
-                    line_end_y = op["y2"] + shake_pen_y_offset
+                    line_start_x = op["x1"]
+                    line_start_y = op["y1"]
+                    line_end_x = op["x2"]
+                    line_end_y = op["y2"]
 
                     if self.verbose:
                         self.gcode.append(f"; Line from {line_start_x}, {line_start_y} to {line_end_x}, {line_end_y}")
@@ -70,10 +67,6 @@ class GCode:
                         self.state_x = line_end_x
                         self.state_y = line_end_y
 
-                    previous_shake_pen_x_offset = shake_pen_x_offset
-                    previous_shake_pen_y_offset = shake_pen_y_offset
-                    shake_pen_x_offset = random.uniform(-shake_pen, shake_pen)
-                    shake_pen_y_offset = random.uniform(-shake_pen, shake_pen)  
             # Move pen up
             self.gcode.append(f"G0 Z{self.pen_up_z}")
             self._dwell(0.1)
@@ -89,6 +82,8 @@ class GCode:
             # makes sure color contains only alphanumeric characters    
             color_for_filename = hex_to_color_name(color)
             # remove # from color_for_filename
+            if isinstance(color, type(None)):
+                color = "unknown"
             color = color.replace("#", "")
 
             with open(f"{filename}_{color}_{color_for_filename}.gcode", "w") as f:

@@ -1,7 +1,7 @@
 import numpy as np
 from opensimplex import OpenSimplex
 
-class VectorField:
+class PerlinNoiseField:
     def __init__(self, scale=1.0, octaves=3, persistence=0.5, blur_radius=2.0):
         """
         Initialize the vector field generator
