@@ -135,7 +135,7 @@ for x in np.arange(margin, plotted_width_mm+margin, step):
 
 print("Drawing signature")
 svg = SVG("signature25.svg")
-svg.draw(canvas, margin, 10, scale=0.5, flip_y=True)
+svg.draw(canvas, margin, canvas.canvas_size_mm[1] - margin+5, scale=1.0)
 
 print("Optimizing")
 print(f"Before: {len(canvas.draw_stack)}")

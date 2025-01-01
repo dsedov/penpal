@@ -12,7 +12,9 @@ class Canvas:
     def translate(self, x, y):
         self.current_matrix = np.dot(self.current_matrix, np.array([[1, 0, x], [0, 1, y], [0, 0, 1]]))
 
-    def scale(self, x, y):
+    def scale(self, x, y=None):
+        if y is None:
+            y = x
         self.current_matrix = np.dot(self.current_matrix, np.array([[x, 0, 0], [0, y, 0], [0, 0, 1]]))
 
     def rotate(self, angle):
@@ -134,20 +136,23 @@ class Canvas:
             color=None,
             thickness=1.0,
             filled=False,
+            outline=True,
+            fill_density=1.0,
             fill_direction='horizontal'):
 
         # --- Draw the outline ---
-        self._line(x,     y,     x + w, y,     color, thickness)  # top edge
-        self._line(x + w, y,     x + w, y + h, color, thickness)  # right edge
-        self._line(x + w, y + h, x,     y + h, color, thickness)  # bottom edge
-        self._line(x,     y + h, x,     y,     color, thickness)  # left edge
+        if outline:
+            self._line(x,     y,     x + w, y,     color, thickness)  # top edge
+            self._line(x + w, y,     x + w, y + h, color, thickness)  # right edge
+            self._line(x + w, y + h, x,     y + h, color, thickness)  # bottom edge
+            self._line(x,     y + h, x,     y,     color, thickness)  # left edge
 
         # --- If not filled, we are done ---
         if not filled:
             return
 
         # You can tweak 'step' to control spacing between fill lines
-        step = thickness  
+        step = abs(thickness / fill_density)
 
         if fill_direction.lower() == 'horizontal':
             # Current "pen" position
