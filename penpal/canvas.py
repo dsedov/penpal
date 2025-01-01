@@ -138,7 +138,8 @@ class Canvas:
             filled=False,
             outline=True,
             fill_density=1.0,
-            fill_direction='horizontal'):
+            fill_direction='horizontal',
+            align_fill_to_edges=False):
 
         # --- Draw the outline ---
         if outline:
@@ -151,81 +152,78 @@ class Canvas:
         if not filled:
             return
 
-        # You can tweak 'step' to control spacing between fill lines
-        step = abs(thickness / fill_density)
-
+        # Calculate step size
+        basic_step = abs(thickness / fill_density)
+        
         if fill_direction.lower() == 'horizontal':
-            # Current "pen" position
-            px = x
-            py = y
+            if align_fill_to_edges:
+                # Calculate number of zigzag sections needed
+                num_steps = max(1, int(h / basic_step))
+                # Adjust step size to exactly fit height
+                step = h / num_steps
+            else:
+                step = basic_step
 
-            # We'll alternate direction each row
-            direction_left_to_right = True
+            # Start position
+            curr_x = x
+            curr_y = y
+            going_right = True
 
-            # Continue until the next horizontal line would be above the box
-            while py + step <= y + h:
-                if direction_left_to_right:
-                    # Draw a horizontal line to the right
-                    self.line(px, py, x + w, py, color, thickness)
-                    # Move pen up one step on the right side
-                    self.line(x + w, py, x + w, py + step, color, thickness)
-                    # Update pen position
-                    px, py = x + w, py + step
+            # Draw continuous zigzag
+            while curr_y < y + h:
+                next_y = min(curr_y + step, y + h)
+                if going_right:
+                    self._line(curr_x, curr_y, x + w, curr_y, color, thickness)
+                    if curr_y < y + h - step/2:  # Draw connecting line if not at last step
+                        self._line(x + w, curr_y, x + w, next_y, color, thickness)
+                    curr_x = x + w
                 else:
-                    # Draw a horizontal line to the left
-                    self.line(px, py, x, py, color, thickness)
-                    # Move pen up one step on the left side
-                    self.line(x, py, x, py + step, color, thickness)
-                    # Update pen position
-                    px, py = x, py + step
+                    self._line(curr_x, curr_y, x, curr_y, color, thickness)
+                    if curr_y < y + h - step/2:  # Draw connecting line if not at last step
+                        self._line(x, curr_y, x, next_y, color, thickness)
+                    curr_x = x
+                
+                curr_y = next_y
+                going_right = not going_right
 
-                direction_left_to_right = not direction_left_to_right
-
-            # Final horizontal stroke if there's a partial row left
-            if py <= y + h:
-                if direction_left_to_right:
-                    # Last partial line to the right
-                    self._line(px, py, x + w, py, color, thickness)
-                else:
-                    # Last partial line to the left
-                    self._line(px, py, x, py, color, thickness)
+            # Add final line if needed (when we ended on a connecting line)
+            if abs(curr_y - y - h) < step/2:
+                self._line(x if not going_right else x + w, y + h, x + w if not going_right else x, y + h, color, thickness)
 
         elif fill_direction.lower() == 'vertical':
+            if align_fill_to_edges:
+                # Calculate number of zigzag sections needed
+                num_steps = max(1, int(w / basic_step))
+                # Adjust step size to exactly fit width
+                step = w / num_steps
+            else:
+                step = basic_step
 
-            # Current "pen" position
-            px = x
-            py = y
+            # Start position
+            curr_x = x
+            curr_y = y
+            going_down = True
 
-            # We'll alternate direction each column
-            direction_top_to_bottom = True
-
-            # Continue until the next vertical line would be outside the box’s width
-            while px + step <= x + w:
-                if direction_top_to_bottom:
-                    # Draw a vertical line down
-                    self._line(px, py, px, y + h, color, thickness)
-                    # Move pen right one step at the bottom
-                    self._line(px, y + h, px + step, y + h, color, thickness)
-                    # Update pen position
-                    px, py = px + step, y + h
+            # Draw continuous zigzag
+            while curr_x < x + w:
+                next_x = min(curr_x + step, x + w)
+                if going_down:
+                    self._line(curr_x, curr_y, curr_x, y + h, color, thickness)
+                    if curr_x < x + w - step/2:  # Draw connecting line if not at last step
+                        self._line(curr_x, y + h, next_x, y + h, color, thickness)
+                    curr_y = y + h
                 else:
-                    # Draw a vertical line up
-                    self._line(px, py, px, y, color, thickness)
-                    # Move pen right one step at the top
-                    self._line(px, y, px + step, y, color, thickness)
-                    # Update pen position
-                    px, py = px + step, y
+                    self._line(curr_x, curr_y, curr_x, y, color, thickness)
+                    if curr_x < x + w - step/2:  # Draw connecting line if not at last step
+                        self._line(curr_x, y, next_x, y, color, thickness)
+                    curr_y = y
+                
+                curr_x = next_x
+                going_down = not going_down
 
-                direction_top_to_bottom = not direction_top_to_bottom
-
-            # Final vertical stroke if there's a partial column left
-            if px <= x + w:
-                if direction_top_to_bottom:
-                    # Last partial line going down
-                    self._line(px, py, px, y + h, color, thickness)
-                else:
-                    # Last partial line going up
-                    self._line(px, py, px, y, color, thickness)
+            # Add final line if needed (when we ended on a connecting line)
+            if abs(curr_x - x - w) < step/2:
+                self._line(x + w, y if not going_down else y + h, x + w, y + h if not going_down else y, color, thickness)
 
 
     def _line(self, x1, y1, x2, y2, color=None, thickness=0.5):
