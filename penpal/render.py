@@ -18,7 +18,6 @@ class Render:
                 draw.line([start_point_px, end_point_px], fill=color, width=thickness_px)
 
     def show(self):
-        self.image = self.image.transpose(Image.FLIP_TOP_BOTTOM)
         self.image.show()
 
     def _mm_to_pixels(self, mm):

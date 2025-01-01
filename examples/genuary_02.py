@@ -22,7 +22,7 @@ name = "genuary_02"
 ## ART BEGINS HERE
 
 svg_font = SVGFont("alphabet.svg")
-svg_font.draw(canvas, 8, 260, "Hello World".upper(), scale=2.8, flip_y=True, stroke_color=None, fill_color="white")
+svg_font.draw(canvas, 8, 260, "Hello World".upper(), scale=2.8, stroke_color=None, fill_color="white")
 
 # populating points
 print("Populating points")
@@ -64,10 +64,10 @@ perlin_noise_field = PerlinNoiseField(scale=0.1, octaves=3, persistence=0.5, blu
 Optimizations.merge_lines(canvas, tolerance=0.005)
 field = Field(canvas, perlin_noise_field)
 field.apply(2.0)
-svg_font.draw(canvas, 8, 260, "Hello World".upper(), scale=2.8, flip_y=True, stroke_color=None, fill_color="white")
+svg_font.draw(canvas, 8, 8, "Hello World".upper(), scale=2.8, stroke_color=None, fill_color="white")
 print("Drawing signature")
 svg = SVG("signature25.svg")
-svg.draw(canvas, margin, 10, scale=1.0, flip_y=True)
+svg.draw(canvas, margin, 10, scale=1.0)
 
 
 print("Optimizing")

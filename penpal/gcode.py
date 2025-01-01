@@ -38,10 +38,11 @@ class GCode:
 
             for op in grouped_by_color[color]:
                 if op["type"] == "line":
+                    # flip y vertically 
                     line_start_x = op["x1"]
-                    line_start_y = op["y1"]
+                    line_start_y = self.canvas.canvas_size_mm[1] - op["y1"] 
                     line_end_x = op["x2"]
-                    line_end_y = op["y2"]
+                    line_end_y = self.canvas.canvas_size_mm[1] - op["y2"]
 
                     if self.verbose:
                         self.gcode.append(f"; Line from {line_start_x}, {line_start_y} to {line_end_x}, {line_end_y}")
