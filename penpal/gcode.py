@@ -67,6 +67,25 @@ class GCode:
                         self.gcode.append(f"G1 X{line_end_x} Y{line_end_y} F{self.draw_speed}")
                         self.state_x = line_end_x
                         self.state_y = line_end_y
+                        
+                if op["type"] == "point":
+                    point_x = op["x"]
+                    point_y = self.canvas.canvas_size_mm[1] - op["y"] 
+
+                    if self.verbose:
+                        self.gcode.append(f"; Point at {point_x}, {point_y}")
+
+                    self.gcode.append(f"G0 Z{self.pen_up_z}")
+                    self.state_z = self.pen_up_z
+                    self._dwell()
+
+                    self.gcode.append(f"G0 X{point_x} Y{point_y} F{self.move_speed}")
+                    self.state_x = point_x
+                    self.state_y = point_y
+
+                    self.gcode.append(f"G0 Z{self.pen_down_z}")
+                    self.state_z = self.pen_down_z
+                    self._dwell()
 
             # Move pen up
             self.gcode.append(f"G0 Z{self.pen_up_z}")

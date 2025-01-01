@@ -1,6 +1,6 @@
 import numpy as np
 class Canvas:
-    def __init__(self, canvas_size_mm = (356.0, 432.0), paper_color="white", pen_color="black"):
+    def __init__(self, canvas_size_mm = (356.0, 432.0), margin = 15.0, paper_color="white", pen_color="black", respect_margin=False):
         self.canvas_size_mm = canvas_size_mm
         self.paper_color = paper_color
         self.pen_color = pen_color
@@ -8,6 +8,27 @@ class Canvas:
         self.tolerance = 0.2
         self.stored_matrix = np.identity(3) 
         self.current_matrix = np.identity(3)
+        self.margin = margin
+        self.respect_margin = respect_margin
+
+    @property
+    def plottable_size(self):
+        return (self.canvas_size_mm[0] - self.margin*2, self.canvas_size_mm[1] - self.margin*2)
+    
+    @property
+    def top_left(self):
+        return (self.margin, self.margin)
+    
+    @property
+    def bottom_right(self):
+        return (self.canvas_size_mm[0] - self.margin, self.canvas_size_mm[1] - self.margin)
+    
+    def clone(self):
+        clone = Canvas(self.canvas_size_mm, self.margin, self.paper_color, self.pen_color, self.respect_margin)
+        clone.draw_stack = self.draw_stack.copy()
+        clone.stored_matrix = self.stored_matrix.copy()
+        clone.current_matrix = self.current_matrix.copy()
+        return clone
 
     def translate(self, x, y):
         self.current_matrix = np.dot(self.current_matrix, np.array([[1, 0, x], [0, 1, y], [0, 0, 1]]))
@@ -28,8 +49,16 @@ class Canvas:
     def line(self, x1, y1, x2, y2, color=None, thickness=0.5):
         self._line(x1, y1, x2, y2, color, thickness)
     
-    def clear(self):
-        self.draw_stack = []
+    def point(self, x, y, color=None, thickness=0.5):
+        self._point(x, y, color, thickness)
+    
+    def clear(self, type="all"):
+        if type == "all":
+            self.draw_stack = []
+        elif type == "points":
+            self.draw_stack = [op for op in self.draw_stack if op["type"] != "point"]
+        elif type == "lines":
+            self.draw_stack = [op for op in self.draw_stack if op["type"] != "line"]
 
     def merge_with(self, other):
         self.draw_stack.extend(other.draw_stack)
@@ -226,9 +255,30 @@ class Canvas:
                 self._line(x + w, y if not going_down else y + h, x + w, y + h if not going_down else y, color, thickness)
 
 
+    def _point(self, x, y, color=None, thickness=0.5):
+        x, y, _ = self.current_matrix @ np.array([x, y, 1])
+        if self.respect_margin:
+            if x < self.margin or x > self.canvas_size_mm[0] - self.margin or y < self.margin or y > self.canvas_size_mm[1] - self.margin:
+                return
+
+        self.draw_stack.append({
+            "type": "point",
+            "x": x,
+            "y": y,
+            "color": color,
+            "thickness": thickness
+        })
+
     def _line(self, x1, y1, x2, y2, color=None, thickness=0.5):
         x1, y1, _ = self.current_matrix @ np.array([x1, y1, 1])
         x2, y2, _ = self.current_matrix @ np.array([x2, y2, 1])
+
+        if self.respect_margin:
+            if x1 < self.margin or x1 > self.canvas_size_mm[0] - self.margin or y1 < self.margin or y1 > self.canvas_size_mm[1] - self.margin:
+                return
+            if x2 < self.margin or x2 > self.canvas_size_mm[0] - self.margin or y2 < self.margin or y2 > self.canvas_size_mm[1] - self.margin:
+                return
+
         self.draw_stack.append({
             "type": "line",
             "x1": x1,

@@ -1,6 +1,6 @@
 import math
 
-class Subdivide:
+class SubdivideLines:
     def __init__(self, canvas, min_length=1.0):
         self.canvas = canvas
         self.min_length = min_length

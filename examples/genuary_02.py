@@ -1,88 +1,56 @@
 import os
 import numpy as np
 import random
-import math
 os.sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-from dataclasses import dataclass
-from typing import List, Tuple
 from penpal.utils import Optimizations
-from penpal.generators.points import PopulatePoints
-
-from penpal import Canvas, Render, SVG, GCode, SVGFont, Noise, Subdivide, Field, PerlinNoiseField
+from penpal.generators.points import PointGrid
+from penpal.operators.color import ApplyColor
+from penpal.simulation.simulation import SetMass, SetImpulse, Simulation, SetAsAttractor
+from penpal.simulation.turbulence import Turbulence
+from penpal.simulation.attractor import Attractor
+from penpal import Canvas, Render, SVG, GCode, SVGFont
 
 canvas = Canvas(canvas_size_mm=(229.0, 305.0), paper_color="black", pen_color="white")
-margin = 15.0
-canvas.margin = margin
-plotted_width_mm = canvas.canvas_size_mm[0] - margin*2
-plotted_height_mm = canvas.canvas_size_mm[1] - margin*2
+canvas.respect_margin = True
+PointGrid(canvas, vspacing=30.0, hspacing=30.0, additional_margin=0.0).generate()
+ApplyColor(canvas, color="#ffffff", chance=1.0)
+ApplyColor(canvas, color="#ff0000", chance=0.1)
+SetMass(canvas, mass=1.0)
+SetAsAttractor(canvas, attractor=1.0)
+SetImpulse(canvas, impulse=(0.0, 0.5))
 
-name = "genuary_02"
-## ART BEGINS HERE
-
-svg_font = SVGFont("alphabet.svg")
-svg_font.draw(canvas, 8, 260, "Hello World".upper(), scale=2.8, stroke_color=None, fill_color="white")
-
-# populating points
-print("Populating points")
-populate_points = PopulatePoints(canvas)
-points = populate_points.generate(density=0.5)
-print(f"Points: {len(points)}")
-canvas.clear()
-from penpal.simulation.gravity import GravitySimulation, Attractor, Particle
-
-attractors = []
-particles = []
-chance_of_particle = 0.02
-for point in points:
-    if random.random() < chance_of_particle:
-        particles.append(Particle(x=point[0], y=point[1], vx=0.0, vy=-0.2, mass=1.0))
-
-attractors = [
-    Attractor(x=plotted_width_mm * 0.3, y=plotted_height_mm * 0.3, mass=8),
-    #Attractor(x=plotted_width_mm * 0.7, y=plotted_height_mm * 0.7, mass=20),
-]
-gravity_simulation = GravitySimulation(canvas, max_steps=20000, attractors=attractors)   
-gravity_simulation.simulate(particle_list=particles, colors=["red", "green"])
-
-## ART ENDS HERE
+turbulence = Turbulence(canvas, turbulence=0.001)
+attractor = Attractor(attractor=(0.0, 0.0), strength=10.5)
+Simulation(canvas,
+           forces=[turbulence, attractor],
+           ).simulate(2900)
 
 
 
-#svg = SVG("shape.svg")
-#svg.draw(canvas, 10, 170, scale=5.0, flip_y=True, pen_width=2.5)
 
 
-# Subdivide
-#print("Subdividing")
-#subdivide = Subdivide(canvas, min_length=0.2)
-#subdivide.apply()
 
-print("Adding field")
-perlin_noise_field = PerlinNoiseField(scale=0.1, octaves=3, persistence=0.5, blur_radius=5.0)
-Optimizations.merge_lines(canvas, tolerance=0.005)
-field = Field(canvas, perlin_noise_field)
-field.apply(2.0)
-svg_font.draw(canvas, 8, 8, "Hello World".upper(), scale=2.8, stroke_color=None, fill_color="white")
+canvas.respect_margin = False
+# Add signature
 print("Drawing signature")
 svg = SVG("signature25.svg")
-svg.draw(canvas, margin, 10, scale=1.0)
+svg.draw(canvas, canvas.canvas_size_mm[0] - canvas.margin - 48, canvas.canvas_size_mm[1] - canvas.margin+4, scale=1.5)
 
+svg_text = SVGFont("alphabet.svg")
+svg_text.draw(canvas, canvas.margin+72, 5, "GENUARY 02".upper(), scale=0.8, stroke_color="#ffffff", fill_color="#ffffff")
 
-print("Optimizing")
-print(f"Before: {len(canvas.draw_stack)}")
-Optimizations.merge_lines(canvas, tolerance=0.005)
-print(f"After: {len(canvas.draw_stack)}")
+# Optimize
+#optimizations = Optimizations()
+#optimizations.merge_lines(canvas, tolerance=0.02)
 
 # Render preview
-print("Rendering preview")
 render = Render(canvas)
 render.render()
 render.show()
 
 # Generate GCode
-print("Generating GCode")
-gcode = GCode(canvas, draw_speed=5000)
+gcode = GCode(canvas)
 gcode.generate()
-gcode.save(f"{name}.gcode")
+gcode.save("sedov_genuary_02.gcode")
