@@ -27,10 +27,10 @@ class GCode:
     def generate(self):
         grouped_by_color = {}
         for op in self.canvas.draw_stack:
-            if op["type"] == "line":
-                if op["color"] not in grouped_by_color:
-                    grouped_by_color[op["color"]] = []
-                grouped_by_color[op["color"]].append(op)
+            if op["color"] not in grouped_by_color:
+                grouped_by_color[op["color"]] = []
+            grouped_by_color[op["color"]].append(op)
+
         self.saved_gcode_state = self.gcode.copy()
         for color in grouped_by_color:
             self.gcode = self.saved_gcode_state.copy()
@@ -67,7 +67,7 @@ class GCode:
                         self.gcode.append(f"G1 X{line_end_x} Y{line_end_y} F{self.draw_speed}")
                         self.state_x = line_end_x
                         self.state_y = line_end_y
-                        
+
                 if op["type"] == "point":
                     point_x = op["x"]
                     point_y = self.canvas.canvas_size_mm[1] - op["y"] 
