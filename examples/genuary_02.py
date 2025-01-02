@@ -10,22 +10,29 @@ from penpal.operators.color import ApplyColor
 from penpal.simulation.simulation import SetMass, SetImpulse, Simulation, SetAsAttractor
 from penpal.simulation.turbulence import Turbulence
 from penpal.simulation.attractor import Attractor
+from penpal.simulation.drag import Drag
 from penpal import Canvas, Render, SVG, GCode, SVGFont
 
 canvas = Canvas(canvas_size_mm=(229.0, 305.0), paper_color="black", pen_color="white")
 canvas.respect_margin = True
-PointGrid(canvas, vspacing=30.0, hspacing=30.0, additional_margin=0.0).generate()
+canvas.push()
+canvas.translate(2,0)
+
+PointGrid(canvas, vspacing=30.0, hspacing=32.0, additional_margin=0.0).generate()
+canvas.pop()
 ApplyColor(canvas, color="#ffffff", chance=1.0)
 ApplyColor(canvas, color="#ff0000", chance=0.1)
 SetMass(canvas, mass=1.0)
 SetAsAttractor(canvas, attractor=1.0)
 SetImpulse(canvas, impulse=(0.0, 0.5))
+drag = Drag(canvas, drag=0.002)
 
-turbulence = Turbulence(canvas, turbulence=0.001)
-attractor = Attractor(attractor=(0.0, 0.0), strength=10.5)
+
+turbulence = Turbulence(canvas, turbulence=0.01)
+attractor = Attractor(attractor=(canvas.canvas_size_mm[0]/2, 0.0), strength=10.5)
 Simulation(canvas,
-           forces=[turbulence, attractor],
-           ).simulate(2900)
+           forces=[turbulence, attractor, drag],
+           ).simulate(1000)
 
 
 
@@ -53,4 +60,4 @@ render.show()
 # Generate GCode
 gcode = GCode(canvas)
 gcode.generate()
-gcode.save("sedov_genuary_02.gcode")
+gcode.save("___sedov_genuary_02.gcode")

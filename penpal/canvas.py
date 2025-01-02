@@ -1,4 +1,5 @@
 import numpy as np
+from copy import deepcopy
 class Canvas:
     def __init__(self, canvas_size_mm = (356.0, 432.0), margin = 15.0, paper_color="white", pen_color="black", respect_margin=False):
         self.canvas_size_mm = canvas_size_mm
@@ -25,9 +26,9 @@ class Canvas:
     
     def clone(self):
         clone = Canvas(self.canvas_size_mm, self.margin, self.paper_color, self.pen_color, self.respect_margin)
-        clone.draw_stack = self.draw_stack.copy()
-        clone.stored_matrix = self.stored_matrix.copy()
-        clone.current_matrix = self.current_matrix.copy()
+        clone.draw_stack = deepcopy(self.draw_stack)
+        clone.stored_matrix = deepcopy(self.stored_matrix)
+        clone.current_matrix = deepcopy(self.current_matrix)
         return clone
 
     def translate(self, x, y):

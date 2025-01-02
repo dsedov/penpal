@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from itertools import cycle
 from typing import List, Tuple
 import math
+import tqdm
 
 from penpal.simulation.attractor import Attractor
 
@@ -58,8 +59,9 @@ class Simulation:
                 if "attractor" in point and point["attractor"] > 0.01 and point["mass"] > 0.01:
                     all_attractor_points.append(point)
 
-        for point in all_points:
-            print(point)
+
+        for point in tqdm.tqdm(all_points):
+ 
             if "impulse" not in point:
                 point["impulse"] = (0, 0)
 
