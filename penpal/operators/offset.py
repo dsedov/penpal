@@ -1,4 +1,5 @@
 import math
+import random
 from copy import deepcopy
 
 class Offset:
@@ -125,10 +126,15 @@ class Offset:
         
         return (prev_offset[0], prev_offset[1], corner_x, corner_y)
     
-    def apply(self):
+    def apply(self, chance=1.0):
         # Process lines by connected groups
         connected_groups = self._find_connected_lines()
-        
+        final_connected_groups = []
+        for group in connected_groups:
+            if random.random() > chance:
+                continue
+            final_connected_groups.append(group)
+        connected_groups = final_connected_groups
         # Create and add offset lines for each count
         for offset_num in range(1, self.count + 1):
             # Create and add offset lines for each group
@@ -178,4 +184,5 @@ class Offset:
                     offset_lines.append(new_line)
                 
                 # Add offset lines to the canvas
-                self.canvas.draw_stack.extend(offset_lines)
+                for line in offset_lines:
+                    self.canvas.line(line["x1"], line["y1"], line["x2"], line["y2"], line["color"], line["thickness"])

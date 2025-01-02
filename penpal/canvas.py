@@ -1,5 +1,7 @@
 import numpy as np
+import random
 from copy import deepcopy
+from PIL import Image, ImageDraw 
 class Canvas:
     def __init__(self, canvas_size_mm = (356.0, 432.0), margin = 15.0, paper_color="white", pen_color="black", respect_margin=False):
         self.canvas_size_mm = canvas_size_mm
@@ -11,6 +13,10 @@ class Canvas:
         self.current_matrix = np.identity(3)
         self.margin = margin
         self.respect_margin = respect_margin
+
+        self.plotter_buffer = Image.new("L", (self._mm_to_pixels(canvas_size_mm[0]), self._mm_to_pixels(canvas_size_mm[1])), "black")
+        self.plotter_buffer_thickness = 2.0
+        self.plotter_buffer_draw = ImageDraw.Draw(self.plotter_buffer)
 
     @property
     def plottable_size(self):
@@ -30,6 +36,18 @@ class Canvas:
         clone.stored_matrix = deepcopy(self.stored_matrix)
         clone.current_matrix = deepcopy(self.current_matrix)
         return clone
+    
+    def crop(self):
+        temp_stack = []
+        for op in self.draw_stack:
+            if op["type"] == "line":    
+                if op["x1"] > self.margin and op["x1"] < self.canvas_size_mm[0] - self.margin and op["y1"] > self.margin and op["y1"] < self.canvas_size_mm[1] - self.margin:
+                    if op["x2"] > self.margin and op["x2"] < self.canvas_size_mm[0] - self.margin and op["y2"] > self.margin and op["y2"] < self.canvas_size_mm[1] - self.margin:
+                        temp_stack.append(op)
+            elif op["type"] == "point":
+                if op["x"] > self.margin and op["x"] < self.canvas_size_mm[0] - self.margin and op["y"] > self.margin and op["y"] < self.canvas_size_mm[1] - self.margin:
+                    temp_stack.append(op)
+        self.draw_stack = temp_stack
 
     def translate(self, x, y):
         self.current_matrix = np.dot(self.current_matrix, np.array([[1, 0, x], [0, 1, y], [0, 0, 1]]))
@@ -53,13 +71,13 @@ class Canvas:
     def point(self, x, y, color=None, thickness=0.5):
         self._point(x, y, color, thickness)
     
-    def clear(self, type="all"):
+    def clear(self, type="all", chance=1.0):
         if type == "all":
-            self.draw_stack = []
+            self.draw_stack = [op for op in self.draw_stack if random.random() < chance]
         elif type == "points":
-            self.draw_stack = [op for op in self.draw_stack if op["type"] != "point"]
+            self.draw_stack = [op for op in self.draw_stack if op["type"] != "point" or random.random() < chance]
         elif type == "lines":
-            self.draw_stack = [op for op in self.draw_stack if op["type"] != "line"]
+            self.draw_stack = [op for op in self.draw_stack if op["type"] != "line" or random.random() < chance]
 
     def merge_with(self, other):
         self.draw_stack.extend(other.draw_stack)
@@ -256,6 +274,20 @@ class Canvas:
                 self._line(x + w, y if not going_down else y + h, x + w, y + h if not going_down else y, color, thickness)
 
 
+    def check_collision(self, x, y, radius=1):
+        x, y, _ = self.current_matrix @ np.array([x, y, 1])
+        px = self._mm_to_pixels(x)
+        py = self._mm_to_pixels(y)
+        
+        pr = self._mm_to_pixels(radius)
+        if px < 0 + pr or px >= self.plotter_buffer.width - pr or py < 0 + pr or py >= self.plotter_buffer.height - pr  :
+            return False
+        for cx in range(px-pr, px+pr):
+            for cy in range(py-pr, py+pr):
+                if self.plotter_buffer.getpixel((cx, cy)) == 255:
+                    return True
+        return False
+
     def _point(self, x, y, color=None, thickness=0.5):
         x, y, _ = self.current_matrix @ np.array([x, y, 1])
         if self.respect_margin:
@@ -269,6 +301,10 @@ class Canvas:
             "color": color,
             "thickness": thickness
         })
+
+        point_px = (self._mm_to_pixels(x), self._mm_to_pixels(y))
+        thickness_px = self._mm_to_pixels(self.plotter_buffer_thickness)
+        self.plotter_buffer_draw.ellipse([point_px[0]-thickness_px/2, point_px[1]-thickness_px/2, point_px[0]+thickness_px/2, point_px[1]+thickness_px/2], fill="white")
 
     def _line(self, x1, y1, x2, y2, color=None, thickness=0.5):
         x1, y1, _ = self.current_matrix @ np.array([x1, y1, 1])
@@ -289,3 +325,11 @@ class Canvas:
             "color": color,
             "thickness": thickness
         })
+
+        start_point_px = (self._mm_to_pixels(x1), self._mm_to_pixels(y1))
+        end_point_px = (self._mm_to_pixels(x2), self._mm_to_pixels(y2))
+        thickness_px = self._mm_to_pixels(self.plotter_buffer_thickness)
+        self.plotter_buffer_draw.line([start_point_px, end_point_px], fill="white", width=thickness_px)
+
+    def _mm_to_pixels(self, mm):
+        return round(mm * 300 / 25.4)  
