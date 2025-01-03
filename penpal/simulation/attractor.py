@@ -15,7 +15,7 @@ class Attractor:
         attractor.mass = point["mass"]
         return attractor
 
-    def apply(self, point, time_step):
+    def apply(self, point, time_step, all_points=[]):
         if time_step < self.after_time or time_step > self.before_time:
             return point
         distance = math.sqrt((self.attractor[0] - point["x"])**2 + (self.attractor[1] - point["y"])**2) 

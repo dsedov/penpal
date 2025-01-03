@@ -14,16 +14,19 @@ class PointGrid:
 
     def generate(self, density=1.0):
         is_odd = True
+        pid = 0
         for y in np.arange(self.canvas.margin + self.additional_margin, self.canvas.canvas_size_mm[1] - self.canvas.margin - self.additional_margin, self.vspacing):
             for x in np.arange(self.canvas.margin + self.additional_margin, self.canvas.canvas_size_mm[0] - self.canvas.margin - self.additional_margin, self.hspacing):
                 if self.hex_pattern:    
                     if is_odd:
-                        self.canvas.point(x, y)
+                        self.canvas.point(x, y, pid=pid)
                     else:
-                        self.canvas.point(x + self.hspacing/2, y)
+                        self.canvas.point(x + self.hspacing/2, y, pid=pid)
                 else:
-                    self.canvas.point(x, y)
+                    self.canvas.point(x, y, pid=pid)
+                pid += 1
             is_odd = not is_odd
+
 
 class ScatterPoints:
     def __init__(self, canvas):

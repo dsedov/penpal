@@ -1,13 +1,14 @@
 import math
 
 class IsometricConstraint:
-    def __init__(self, canvas, angle_degrees=30, threshold=0.2, after_time=0.0, before_time=1000000000):
+    def __init__(self, canvas, angle_degrees=30, threshold=0.2, strength=1.0, after_time=0.0, before_time=1000000000):
         self.canvas = canvas
         self.after_time = after_time
         self.before_time = before_time
         self.angle_rad = math.radians(angle_degrees)
         self.threshold = threshold  # Threshold for snapping
-        
+        self.strength = strength
+
         # Pre-calculate all preferred angles in radians
         self.preferred_angles = [
             0,                    # Horizontal (0°)
@@ -49,7 +50,7 @@ class IsometricConstraint:
         
         return closest_angle, min_diff
 
-    def apply(self, point, time_step):
+    def apply(self, point, time_step, all_points = []):
         """Apply the isometric constraint to the point's impulse"""
         if time_step < self.after_time or time_step > self.before_time:
             return point
@@ -71,7 +72,7 @@ class IsometricConstraint:
         # If the angle difference is within threshold, snap to preferred angle
         if min_diff <= self.threshold:
             new_x, new_y = self._angle_to_vector(closest_angle, magnitude)
-            point["impulse"] = (new_x, new_y)
+            point["impulse"] = ( point["impulse"][0] * (1.0-self.strength) + new_x * self.strength, point["impulse"][1] * (1.0-self.strength) + new_y * self.strength)
         
         return point
 

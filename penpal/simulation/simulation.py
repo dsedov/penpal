@@ -8,29 +8,61 @@ import tqdm
 from penpal.simulation.attractor import Attractor
 
 class SetMass:
-    def __init__(self, canvas, mass=1.0, chance=1.0):
+    def __init__(self, canvas, mass=1.0, chance=1.0, mode="set", field=None):
         self.canvas = canvas
         self.mass = mass
         self.chance = chance
+        self.field = field
+        self.mode = mode
         self.set()
 
     def set(self):
         for op in self.canvas.draw_stack:
             if op["type"] == "point":
                 if random.random() < self.chance:
-                    op["mass"] = self.mass
+                    if self.field is not None:
+                        if self.mode == "set":
+                            op["mass"] = self.field.get_float(op["x"], op["y"]) * self.mass
+                        elif self.mode == "add":
+                            op["mass"] += self.field.get_float(op["x"], op["y"])
+                    else:
+                        if self.mode == "set":
+                            op["mass"] = self.mass
+                        elif self.mode == "add":
+                            op["mass"] += self.mass
+
 
 class SetImpulse:
-    def __init__(self, canvas, impulse=1.0):
+    def __init__(self, canvas, impulse=1.0, chance=1.0, mode="set", field=None, randomize=False):
         self.canvas = canvas
         self.impulse = impulse
+        self.chance = chance
+        self.field = field
+        self.mode = mode
+        self.randomize = randomize
         self.set()
 
     def set(self):
         for op in self.canvas.draw_stack:
             if op["type"] == "point":
-                op["impulse"] = self.impulse
-
+                if random.random() < self.chance:
+                    if self.field is not None:
+                        if self.mode == "set":
+                            op["impulse"] = (self.field.get_float(op["x"], op["y"]) * self.impulse[0], self.field.get_float(op["x"], op["y"]) * self.impulse[1])
+                        elif self.mode == "add":
+                            op["impulse"] = (op["impulse"][0] + self.field.get_float(op["x"], op["y"]) * self.impulse[0], op["impulse"][1] + self.field.get_float(op["x"], op["y"]) * self.impulse[1])
+                    else:
+                        if self.mode == "set":
+                            if self.randomize:
+                                op["impulse"] = (random.uniform(-self.impulse[0], self.impulse[0]), random.uniform(-self.impulse[1], self.impulse[1]))
+                            else:
+                                op["impulse"] = self.impulse
+                        elif self.mode == "add":
+                            if self.randomize:
+                                op["impulse"] = (op["impulse"][0] + random.uniform(-self.impulse[0], self.impulse[0]), op["impulse"][1] + random.uniform(-self.impulse[1], self.impulse[1]))
+                            else:
+                                op["impulse"] = (op["impulse"][0] + self.impulse[0], op["impulse"][1] + self.impulse[1])
+    
 class SetAsAttractor:
     def __init__(self, canvas, attractor=1.0, chance=1.0):
         self.canvas = canvas
@@ -43,9 +75,11 @@ class SetAsAttractor:
             if op["type"] == "point":
                 if random.random() < self.chance:
                     op["attractor"] = self.attractor
+                    if self.attractor > 0.01:
+                        op["live"] = True
 
 class Simulation:
-    def __init__(self, canvas, forces=[], events=[], dt = 0.1, start_lines_at=0, type="sequential", 
+    def __init__(self, canvas, forces=[], events=[], on_step_end = [], dt = 0.1, start_lines_at=0, type="sequential", 
                  collision_detection=False, 
                  collision_type="line", 
                  collision_damping=0.1,
@@ -57,6 +91,7 @@ class Simulation:
         self.collision_detection = collision_detection
         self.collision_type = collision_type
         self.collision_damping = collision_damping
+        self.on_step_end = on_step_end
 
         # Physics constants
         self.G = 0.5  # Gravitational constant
@@ -74,6 +109,7 @@ class Simulation:
         all_attractor_points = []
         for point in self.canvas.draw_stack:
             if point["type"] == "point":
+                point["live"] = True
                 all_points.append(point)
                 if "attractor" in point and point["attractor"] > 0.01 and point["mass"] > 0.01:
                     all_attractor_points.append(point)
@@ -112,9 +148,10 @@ class Simulation:
                     self.canvas.line(start_x, start_y, end_x, end_y, color=point["color"], thickness=point["thickness"])
 
         elif self.type == "concurrent":
-            for time_step in tqdm.tqdm(range(steps)):
-                for point in all_points:
-    
+            for time_step in tqdm.tqdm(range(steps), desc="Time Step", position=0):
+                for point in tqdm.tqdm(all_points, desc="Points", position=1, leave=False):
+                    if not point["live"]:
+                        continue
                     if "impulse" not in point:
                         point["impulse"] = (0, 0)
 
@@ -126,7 +163,7 @@ class Simulation:
 
       
                     for force in self.forces:
-                        force.apply(point, time_step)  
+                        force.apply(point, time_step, all_points=all_points)  
 
                     for attractor_point in all_attractor_points:
                         if attractor_point == point:
@@ -138,11 +175,25 @@ class Simulation:
                     start_y = point["y"]
 
 
-                    
+                    event_collision = False
                     if self.collision_detection:    
                         if self._check_collision(point["x"], point["y"], point["x"] + point["impulse"][0] * self.dt, point["y"] + point["impulse"][1] * self.dt, time_step):
-                            # Handle collision (e.g., reflect impulse)
                             point["impulse"] = (-point["impulse"][0] * (1.0-self.collision_damping), -point["impulse"][1] * (1.0-self.collision_damping))
+                            if point["impulse"][0] < 0.0001 and point["impulse"][1] < 0.0001:
+                                point["live"] = False
+                            event_collision = True
+                    
+                    for event in self.events:
+                        for event_reason in event.on:
+                            if event_reason == "collision" and event_collision:
+                                event.apply(point, time_step)
+                            elif event_reason == "near_point":
+                                for point_to_check in all_points:
+                                    if point_to_check == point:
+                                        continue
+                                    if math.dist((point["x"], point["y"]), (point_to_check["x"], point_to_check["y"])) < event.distance:
+                                        event.apply(point, time_step, with_point=point_to_check)   
+                                        break
 
                     point["x"] += point["impulse"][0] * self.dt
                     point["y"] += point["impulse"][1] * self.dt
@@ -150,11 +201,13 @@ class Simulation:
                     end_x = point["x"]
                     end_y = point["y"]    
                     if time_step >= self.start_lines_at:
-                        self.canvas.line(start_x, start_y, end_x, end_y, color=point["color"], thickness=point["thickness"])
+                        self.canvas.line(start_x, start_y, end_x, end_y, color=point["color"], thickness=point["thickness"], pid=point["pid"])
                         if self.collision_flip_mass:
                             point["mass"] = -point["mass"]
                         self._add_line_to_grid(start_x, start_y, end_x, end_y, time_step)
 
+                for function in self.on_step_end:
+                    function(time_step)
 
     def _get_cells_for_line(self, x1, y1, x2, y2):
         """Get all grid cells that a line segment passes through"""

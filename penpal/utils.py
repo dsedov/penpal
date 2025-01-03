@@ -1,5 +1,22 @@
 import math
-
+import numpy as np
+import cv2
+def save_as_video(frames, output_path, fps=20):
+    # Get dimensions from first frame
+    height, width = np.array(frames[0]).shape[:2]
+    
+    # Create video writer object
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # or use 'XVID' for .avi
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    
+    # Write each frame
+    for frame in frames:
+        # Convert PIL image to numpy array and from RGB to BGR
+        frame_array = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
+        out.write(frame_array)
+    
+    # Release the video writer
+    out.release()
 class Optimizations:
     @staticmethod
     def are_points_collinear(p1, p2, p3, tolerance=0.1):
@@ -26,6 +43,10 @@ class Optimizations:
         """Check if two lines have the same visual properties."""
         return (line1["color"] == line2["color"] and 
                 line1["thickness"] == line2["thickness"])
+
+    @staticmethod
+    def sort_lines(canvas):
+        canvas.draw_stack.sort(key=lambda x: x["pid"])
 
     @staticmethod
     def merge_lines(canvas, tolerance=0.1):

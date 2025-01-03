@@ -65,11 +65,11 @@ class Canvas:
     def pop(self):
         self.current_matrix = self.stored_matrix
 
-    def line(self, x1, y1, x2, y2, color=None, thickness=0.5):
-        self._line(x1, y1, x2, y2, color, thickness)
+    def line(self, x1, y1, x2, y2, color=None, thickness=0.5, pid=None):
+        self._line(x1, y1, x2, y2, color, thickness, pid)
     
-    def point(self, x, y, color=None, thickness=0.5):
-        self._point(x, y, color, thickness)
+    def point(self, x, y, color=None, thickness=0.5, pid=None):
+        self._point(x, y, color, thickness, pid)
     
     def clear(self, type="all", chance=1.0):
         if type == "all":
@@ -288,7 +288,7 @@ class Canvas:
                     return True
         return False
 
-    def _point(self, x, y, color=None, thickness=0.5):
+    def _point(self, x, y, color=None, thickness=0.5, pid=None):
         x, y, _ = self.current_matrix @ np.array([x, y, 1])
         if self.respect_margin:
             if x < self.margin or x > self.canvas_size_mm[0] - self.margin or y < self.margin or y > self.canvas_size_mm[1] - self.margin:
@@ -299,14 +299,15 @@ class Canvas:
             "x": x,
             "y": y,
             "color": color,
-            "thickness": thickness
+            "thickness": thickness,
+            "pid": pid
         })
 
         point_px = (self._mm_to_pixels(x), self._mm_to_pixels(y))
         thickness_px = self._mm_to_pixels(self.plotter_buffer_thickness)
         self.plotter_buffer_draw.ellipse([point_px[0]-thickness_px/2, point_px[1]-thickness_px/2, point_px[0]+thickness_px/2, point_px[1]+thickness_px/2], fill="white")
 
-    def _line(self, x1, y1, x2, y2, color=None, thickness=0.5):
+    def _line(self, x1, y1, x2, y2, color=None, thickness=0.5, pid=None):
         x1, y1, _ = self.current_matrix @ np.array([x1, y1, 1])
         x2, y2, _ = self.current_matrix @ np.array([x2, y2, 1])
 
@@ -323,7 +324,8 @@ class Canvas:
             "x2": x2,
             "y2": y2,
             "color": color,
-            "thickness": thickness
+            "thickness": thickness,
+            "pid": pid
         })
 
         start_point_px = (self._mm_to_pixels(x1), self._mm_to_pixels(y1))

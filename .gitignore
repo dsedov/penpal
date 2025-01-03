@@ -7,6 +7,10 @@ __pycache__/
 *.so
 *.gcode
 *.svg
+*.jpg
+*.mp4
+*.gif
+*.png
 
 # Distribution / packaging
 .Python

@@ -48,15 +48,15 @@ class GCode:
                         self.gcode.append(f"; Line from {line_start_x}, {line_start_y} to {line_end_x}, {line_end_y}")
 
                     if self._is_close_to(line_start_x, line_start_y, self.state_z):
-                        self.gcode.append(f"G1 X{line_end_x} Y{line_end_y} F{self.draw_speed}")
+                        self.gcode.append(f"G1 X{line_end_x:.2f} Y{line_end_y:.2f} F{self.draw_speed}")
                         self.state_x = line_end_x
                         self.state_y = line_end_y
                     else:
-                        self.gcode.append(f"G0 Z{self.pen_up_z}")
+                        self.gcode.append(f"G0 Z{self.pen_up_z:.2f}")
                         self.state_z = self.pen_up_z
                         self._dwell()
 
-                        self.gcode.append(f"G0 X{line_start_x} Y{line_start_y} F{self.move_speed}")
+                        self.gcode.append(f"G0 X{line_start_x:.2f} Y{line_start_y:.2f} F{self.move_speed}")
                         self.state_x = line_start_x
                         self.state_y = line_start_y
 
@@ -64,7 +64,7 @@ class GCode:
                         self.state_z = self.pen_down_z
                         self._dwell()
                      
-                        self.gcode.append(f"G1 X{line_end_x} Y{line_end_y} F{self.draw_speed}")
+                        self.gcode.append(f"G1 X{line_end_x:.2f} Y{line_end_y:.2f} F{self.draw_speed}")
                         self.state_x = line_end_x
                         self.state_y = line_end_y
 
@@ -75,20 +75,20 @@ class GCode:
                     if self.verbose:
                         self.gcode.append(f"; Point at {point_x}, {point_y}")
 
-                    self.gcode.append(f"G0 Z{self.pen_up_z}")
+                    self.gcode.append(f"G0 Z{self.pen_up_z:.2f}")
                     self.state_z = self.pen_up_z
                     self._dwell()
 
-                    self.gcode.append(f"G0 X{point_x} Y{point_y} F{self.move_speed}")
+                    self.gcode.append(f"G0 X{point_x:.2f} Y{point_y:.2f} F{self.move_speed}")
                     self.state_x = point_x
                     self.state_y = point_y
 
-                    self.gcode.append(f"G0 Z{self.pen_down_z}")
+                    self.gcode.append(f"G0 Z{self.pen_down_z:.2f}")
                     self.state_z = self.pen_down_z
                     self._dwell()
 
             # Move pen up
-            self.gcode.append(f"G0 Z{self.pen_up_z}")
+            self.gcode.append(f"G0 Z{self.pen_up_z:.2f}")
             self._dwell(0.1)
             self.gcode.append(f"G0 X0 Y0")
             self.multi_gcode[color] = self.gcode.copy()

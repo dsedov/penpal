@@ -7,7 +7,7 @@ class Turbulence:
         self.after_time = after_time
         self.before_time = before_time
 
-    def apply(self, point, time_step):
+    def apply(self, point, time_step, all_points = []):
         if time_step < self.after_time or time_step > self.before_time:
             return point
         point["impulse"] = ( 
