@@ -79,11 +79,14 @@ class SetAsAttractor:
                         op["live"] = True
 
 class Simulation:
-    def __init__(self, canvas, forces=[], events=[], on_step_end = [], dt = 0.1, start_lines_at=0, type="sequential", 
-                 collision_detection=False, 
-                 collision_type="line", 
+    def __init__(self, canvas, forces=[], events=[], on_step_end=[], dt=0.1, start_lines_at=0, type="sequential",
+                 collision_detection=False,
+                 collision_type="line",
                  collision_damping=0.1,
-                 collision_flip_mass=False):
+                 collision_flip_mass=False,
+                 repel=False,
+                 repel_force=1.0,
+                 repel_radius=10.0):
         self.canvas = canvas
         self.forces = forces
         self.events = events
@@ -92,6 +95,11 @@ class Simulation:
         self.collision_type = collision_type
         self.collision_damping = collision_damping
         self.on_step_end = on_step_end
+        
+        # Repulsion parameters
+        self.repel = repel
+        self.repel_force = repel_force
+        self.repel_radius = repel_radius
 
         # Physics constants
         self.G = 0.5  # Gravitational constant
@@ -147,28 +155,42 @@ class Simulation:
                 for function in self.on_step_end:
                     function(time_step)
 
-    def _step(self, point, all_points, all_attractor_points, time_step):      
+    def _step(self, point, all_points, all_attractor_points, time_step):
+        # Apply all regular forces
         for force in self.forces:
-            force.apply(point, time_step, all_points=all_points)  
+            force.apply(point, time_step, all_points=all_points)
 
+        # Apply attractor forces
         for attractor_point in all_attractor_points:
             if attractor_point == point:
                 continue
             attractor = Attractor.from_point(attractor_point)
             attractor.apply(point, time_step)
-            
+
+        # Calculate repulsion force from nearby lines
+        if self.repel:
+            repel_force_x, repel_force_y = self._calculate_repulsion_force(point, time_step)
+            point["impulse"] = (
+                point["impulse"][0] + repel_force_x * self.dt,
+                point["impulse"][1] + repel_force_y * self.dt
+            )
+
         start_x = point["x"]
         start_y = point["y"]
 
-
         event_collision = False
-        if self.collision_detection:    
-            if self._check_collision(point["x"], point["y"], point["x"] + point["impulse"][0] * self.dt, point["y"] + point["impulse"][1] * self.dt, time_step):
-                point["impulse"] = (-point["impulse"][0] * (1.0-self.collision_damping), -point["impulse"][1] * (1.0-self.collision_damping))
-                if point["impulse"][0] < 0.0001 and point["impulse"][1] < 0.0001:
+        if self.collision_detection:
+            if self._check_collision(point["x"], point["y"],
+                                   point["x"] + point["impulse"][0] * self.dt,
+                                   point["y"] + point["impulse"][1] * self.dt,
+                                   time_step):
+                point["impulse"] = (-point["impulse"][0] * (1.0-self.collision_damping),
+                                  -point["impulse"][1] * (1.0-self.collision_damping))
+                if abs(point["impulse"][0]) < 0.0001 and abs(point["impulse"][1]) < 0.0001:
                     point["live"] = False
                 event_collision = True
-        
+
+        # Handle events
         for event in self.events:
             for event_reason in event.on:
                 if event_reason == "collision" and event_collision:
@@ -177,17 +199,23 @@ class Simulation:
                     for point_to_check in all_points:
                         if point_to_check == point:
                             continue
-                        if math.dist((point["x"], point["y"]), (point_to_check["x"], point_to_check["y"])) < event.distance:
-                            event.apply(point, time_step, with_point=point_to_check)   
+                        if math.dist((point["x"], point["y"]),
+                                   (point_to_check["x"], point_to_check["y"])) < event.distance:
+                            event.apply(point, time_step, with_point=point_to_check)
                             break
 
+        # Update position
         point["x"] += point["impulse"][0] * self.dt
         point["y"] += point["impulse"][1] * self.dt
 
         end_x = point["x"]
-        end_y = point["y"]    
+        end_y = point["y"]
+
         if time_step >= self.start_lines_at:
-            self.canvas.line(start_x, start_y, end_x, end_y, color=point["color"], thickness=point["thickness"], pid=point["pid"])
+            self.canvas.line(start_x, start_y, end_x, end_y,
+                           color=point["color"],
+                           thickness=point["thickness"],
+                           pid=point["pid"])
             if self.collision_flip_mass:
                 point["mass"] = -point["mass"]
             self._add_line_to_grid(start_x, start_y, end_x, end_y, time_step)
@@ -266,3 +294,87 @@ class Simulation:
                         if self._line_segment_intersection(x1, y1, x2, y2, x3, y3, x4, y4):
                             return True
         return False
+    
+    def _calculate_line_point_distance(self, px, py, x1, y1, x2, y2):
+        """Calculate the shortest distance from a point to a line segment"""
+        A = px - x1
+        B = py - y1
+        C = x2 - x1
+        D = y2 - y1
+
+        dot = A * C + B * D
+        len_sq = C * C + D * D
+
+        if len_sq == 0:
+            # x1 and x2 are the same point
+            return math.sqrt(A * A + B * B)
+
+        param = dot / len_sq
+
+        if param < 0:
+            # point is nearest to the start of the line segment
+            return math.sqrt(A * A + B * B)
+        elif param > 1:
+            # point is nearest to the end of the line segment
+            return math.sqrt((px - x2) * (px - x2) + (py - y2) * (py - y2))
+        else:
+            # normal case - project the point onto the line segment
+            x = x1 + param * C
+            y = y1 + param * D
+            return math.sqrt((px - x) * (px - x) + (py - y) * (py - y))
+
+    def _calculate_repulsion_force(self, point, current_time_step):
+        """Calculate the repulsion force from nearby line segments"""
+        if not self.repel:
+            return (0, 0)
+
+        cells = self._get_cells_for_line(
+            point["x"] - self.repel_radius,
+            point["y"] - self.repel_radius,
+            point["x"] + self.repel_radius,
+            point["y"] + self.repel_radius
+        )
+
+        total_force_x = 0
+        total_force_y = 0
+
+        for cell in cells:
+            if cell in self.grid:
+                for line in self.grid[cell]:
+                    x1, y1, x2, y2, line_time_step = line
+                    
+                    # Only consider lines that are old enough
+                    if current_time_step - line_time_step > self.collision_buffer_steps:
+                        distance = self._calculate_line_point_distance(point["x"], point["y"], x1, y1, x2, y2)
+                        
+                        if distance < self.repel_radius:
+                            # Calculate the closest point on the line
+                            A = point["x"] - x1
+                            B = point["y"] - y1
+                            C = x2 - x1
+                            D = y2 - y1
+                            
+                            dot = A * C + B * D
+                            len_sq = C * C + D * D
+                            param = max(0, min(1, dot / len_sq if len_sq != 0 else 0))
+                            
+                            closest_x = x1 + param * C
+                            closest_y = y1 + param * D
+                            
+                            # Calculate direction from line to point
+                            dir_x = point["x"] - closest_x
+                            dir_y = point["y"] - closest_y
+                            
+                            # Normalize direction
+                            length = math.sqrt(dir_x * dir_x + dir_y * dir_y)
+                            if length > 0:
+                                dir_x /= length
+                                dir_y /= length
+                                
+                                # Force decreases with distance (inverse square law)
+                                force_magnitude = self.repel_force * (1 - distance / self.repel_radius) ** 2
+                                
+                                total_force_x += dir_x * force_magnitude
+                                total_force_y += dir_y * force_magnitude
+
+        return (total_force_x, total_force_y)

@@ -30,6 +30,19 @@ class Canvas:
     def bottom_right(self):
         return (self.canvas_size_mm[0] - self.margin, self.canvas_size_mm[1] - self.margin)
     
+    @property
+    def right(self):
+        return self.canvas_size_mm[0] - self.margin
+    @property
+    def left(self):
+        return self.margin
+    @property
+    def top(self):
+        return self.margin
+    @property
+    def bottom(self):
+        return self.canvas_size_mm[1] - self.margin
+    
     def clone(self):
         clone = Canvas(self.canvas_size_mm, self.margin, self.paper_color, self.pen_color, self.respect_margin)
         clone.draw_stack = deepcopy(self.draw_stack)
@@ -70,6 +83,9 @@ class Canvas:
     
     def point(self, x, y, color=None, thickness=0.5, pid=None):
         self._point(x, y, color, thickness, pid)
+    
+    def max_pid(self):
+        return max([op["pid"] for op in self.draw_stack])
     
     def clear(self, type="all", chance=1.0):
         if chance < 1.0:
@@ -280,6 +296,7 @@ class Canvas:
             # Add final line if needed (when we ended on a connecting line)
             if abs(curr_x - x - w) < step/2:
                 self._line(x + w, y if not going_down else y + h, x + w, y + h if not going_down else y, color, thickness)
+
 
 
     def check_collision(self, x, y, radius=1):

@@ -3,11 +3,13 @@ import random
 from copy import deepcopy
 
 class Offset:
-    def __init__(self, canvas, offset_distance, count=1, continuity_threshold=0.1):
+    def __init__(self, canvas, offset_distance, count=1, continuity_threshold=0.1, rule=None, group=None):
         self.canvas = canvas
         self.offset_distance = offset_distance  # Scalar offset distance
         self.count = count  # Number of parallel offsets to create
         self.threshold = continuity_threshold
+        self.rule = rule
+        self.group = group
     
     def _normalize_vector(self, x, y):
         """Normalize a vector to unit length."""
@@ -41,7 +43,10 @@ class Offset:
     
     def _find_connected_lines(self):
         """Group connected lines together."""
-        lines = [op for op in self.canvas.draw_stack if op["type"] == "line"]
+        if self.group:
+            lines = [op for op in self.group.ops if op["type"] == "line"]
+        else:
+            lines = [op for op in self.canvas.draw_stack if op["type"] == "line"]
         if not lines:
             return []
             
@@ -52,8 +57,7 @@ class Offset:
             prev_line = current_group[-1]
             
             # Check if current line connects to previous line
-            if self._points_connected(prev_line["x2"], prev_line["y2"], 
-                                    line["x1"], line["y1"]):
+            if self._points_connected(prev_line["x2"], prev_line["y2"], line["x1"], line["y1"]):
                 # Make end point of previous line exactly match start point of current line
                 line["x1"] = prev_line["x2"]
                 line["y1"] = prev_line["y2"]
@@ -127,6 +131,7 @@ class Offset:
         return (prev_offset[0], prev_offset[1], corner_x, corner_y)
     
     def apply(self, chance=1.0):
+        max_pid = self.canvas.max_pid()
         # Process lines by connected groups
         connected_groups = self._find_connected_lines()
         final_connected_groups = []
@@ -185,4 +190,5 @@ class Offset:
                 
                 # Add offset lines to the canvas
                 for line in offset_lines:
-                    self.canvas.line(line["x1"], line["y1"], line["x2"], line["y2"], line["color"], line["thickness"])
+                    self.canvas.line(line["x1"], line["y1"], line["x2"], line["y2"], line["color"], line["thickness"], pid=max_pid+1)
+                max_pid += 1
