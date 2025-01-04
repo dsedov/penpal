@@ -127,25 +127,7 @@ class Simulation:
                     point["attractor"] = 0.0
 
                 for time_step in range(steps):    
-                    for force in self.forces:
-                        force.apply(point, time_step)  
-
-                    for attractor_point in all_attractor_points:
-                        if attractor_point == point:
-                            continue
-                        attractor = Attractor.from_point(attractor_point)
-                        attractor.apply(point, time_step)
-                        
-                    start_x = point["x"]
-                    start_y = point["y"]
-
-
-                    point["x"] += point["impulse"][0] * self.dt
-                    point["y"] += point["impulse"][1] * self.dt
-
-                    end_x = point["x"]
-                    end_y = point["y"]
-                    self.canvas.line(start_x, start_y, end_x, end_y, color=point["color"], thickness=point["thickness"])
+                    self._step(point, all_points, all_attractor_points, time_step)
 
         elif self.type == "concurrent":
             for time_step in tqdm.tqdm(range(steps), desc="Time Step", position=0):
@@ -160,54 +142,55 @@ class Simulation:
 
                     if "attractor" not in point:
                         point["attractor"] = 0.0
-
-      
-                    for force in self.forces:
-                        force.apply(point, time_step, all_points=all_points)  
-
-                    for attractor_point in all_attractor_points:
-                        if attractor_point == point:
-                            continue
-                        attractor = Attractor.from_point(attractor_point)
-                        attractor.apply(point, time_step)
-                        
-                    start_x = point["x"]
-                    start_y = point["y"]
-
-
-                    event_collision = False
-                    if self.collision_detection:    
-                        if self._check_collision(point["x"], point["y"], point["x"] + point["impulse"][0] * self.dt, point["y"] + point["impulse"][1] * self.dt, time_step):
-                            point["impulse"] = (-point["impulse"][0] * (1.0-self.collision_damping), -point["impulse"][1] * (1.0-self.collision_damping))
-                            if point["impulse"][0] < 0.0001 and point["impulse"][1] < 0.0001:
-                                point["live"] = False
-                            event_collision = True
-                    
-                    for event in self.events:
-                        for event_reason in event.on:
-                            if event_reason == "collision" and event_collision:
-                                event.apply(point, time_step)
-                            elif event_reason == "near_point":
-                                for point_to_check in all_points:
-                                    if point_to_check == point:
-                                        continue
-                                    if math.dist((point["x"], point["y"]), (point_to_check["x"], point_to_check["y"])) < event.distance:
-                                        event.apply(point, time_step, with_point=point_to_check)   
-                                        break
-
-                    point["x"] += point["impulse"][0] * self.dt
-                    point["y"] += point["impulse"][1] * self.dt
-
-                    end_x = point["x"]
-                    end_y = point["y"]    
-                    if time_step >= self.start_lines_at:
-                        self.canvas.line(start_x, start_y, end_x, end_y, color=point["color"], thickness=point["thickness"], pid=point["pid"])
-                        if self.collision_flip_mass:
-                            point["mass"] = -point["mass"]
-                        self._add_line_to_grid(start_x, start_y, end_x, end_y, time_step)
+                    self._step(point, all_points, all_attractor_points, time_step)
 
                 for function in self.on_step_end:
                     function(time_step)
+
+    def _step(self, point, all_points, all_attractor_points, time_step):      
+        for force in self.forces:
+            force.apply(point, time_step, all_points=all_points)  
+
+        for attractor_point in all_attractor_points:
+            if attractor_point == point:
+                continue
+            attractor = Attractor.from_point(attractor_point)
+            attractor.apply(point, time_step)
+            
+        start_x = point["x"]
+        start_y = point["y"]
+
+
+        event_collision = False
+        if self.collision_detection:    
+            if self._check_collision(point["x"], point["y"], point["x"] + point["impulse"][0] * self.dt, point["y"] + point["impulse"][1] * self.dt, time_step):
+                point["impulse"] = (-point["impulse"][0] * (1.0-self.collision_damping), -point["impulse"][1] * (1.0-self.collision_damping))
+                if point["impulse"][0] < 0.0001 and point["impulse"][1] < 0.0001:
+                    point["live"] = False
+                event_collision = True
+        
+        for event in self.events:
+            for event_reason in event.on:
+                if event_reason == "collision" and event_collision:
+                    event.apply(point, time_step)
+                elif event_reason == "near_point":
+                    for point_to_check in all_points:
+                        if point_to_check == point:
+                            continue
+                        if math.dist((point["x"], point["y"]), (point_to_check["x"], point_to_check["y"])) < event.distance:
+                            event.apply(point, time_step, with_point=point_to_check)   
+                            break
+
+        point["x"] += point["impulse"][0] * self.dt
+        point["y"] += point["impulse"][1] * self.dt
+
+        end_x = point["x"]
+        end_y = point["y"]    
+        if time_step >= self.start_lines_at:
+            self.canvas.line(start_x, start_y, end_x, end_y, color=point["color"], thickness=point["thickness"], pid=point["pid"])
+            if self.collision_flip_mass:
+                point["mass"] = -point["mass"]
+            self._add_line_to_grid(start_x, start_y, end_x, end_y, time_step)
 
     def _get_cells_for_line(self, x1, y1, x2, y2):
         """Get all grid cells that a line segment passes through"""

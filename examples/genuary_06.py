@@ -1,7 +1,8 @@
 import os
 import cv2
+import numpy as np
 os.sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from penpal.generators.points import PointGrid
+from penpal.generators.points import PointGrid, AddPointTool
 from penpal.operators.color import ApplyColor
 from penpal.utils import Optimizations, save_as_video
 from penpal.simulation.simulation import SetMass, SetImpulse, Simulation, SetAsAttractor
@@ -10,6 +11,7 @@ from penpal.operators.field import ApplyField
 from penpal.simulation.turbulence import Turbulence
 from penpal.simulation.gravity import Gravity
 from penpal.simulation.attractor import Attractor
+from penpal.simulation.follow import FollowEdge
 from penpal.simulation.vortex import Vortex
 from penpal.simulation.relax import Relax
 from penpal.generators import ImageField
@@ -18,48 +20,65 @@ from penpal.simulation.events import FlipMass
 from penpal import Canvas, Render, SVG, GCode, SVGFont
 
 canvas = Canvas(canvas_size_mm=(229.0, 305.0), paper_color="black", pen_color="white", respect_margin=True)
-PointGrid(canvas, vspacing=5.0, hspacing=5.0, additional_margin=0.0, hex_pattern=True).generate()
-
-SetImpulse(canvas, impulse=(0.0, 0.0))
-landscape_image_field = ImageField(canvas, "landscape.jpg", dpi=300)
-#ApplyField(canvas, field=landscape_image_field).apply(strength=-3.0)
-landscape_image_field.threshold(0.1, 0.5)
-landscape_image_field.gamma(0.4)
+add_point_tool = AddPointTool(canvas)
+relax = Relax(canvas, strength=4.0, radius=20.0, min_distance=1.0)
 turbulence = Turbulence(canvas, turbulence=0.1)
-#ApplyColor(canvas, color="#ffffff", chance=1.0)
-#ApplyColor(canvas, color="#ffff00", chance=0.1)
-#ApplyColor(canvas, color="#ff0000", chance=0.1)
-ApplyColor(canvas, color=["#252525", "#454545","#ffffff"], field=landscape_image_field)
-SetMass(canvas, mass=1.0, field=landscape_image_field)
-SetMass(canvas, mass=2.0, mode="add")
-#SetAsAttractor(canvas, attractor=1.0, chance=0.1)
-isometric_constraint = IsometricConstraint(canvas,strength=0.5, after_time=70)
+follow_edge = FollowEdge(canvas, "landscape.jpg", angle_range=45, step_size=5, dpi=50)
+follow_edge_back = FollowEdge(canvas, "landscape.jpg", angle_range=45, step_size=-5, dpi=50)
+isometric_constraint = IsometricConstraint(canvas, angle_degrees=30, threshold=1.0, strength=0.5)
 border_drag = BorderDrag(canvas, drag=1.0)
-drag = Drag(canvas, field=landscape_image_field.inversed(), drag=0.3, before_time=70)
-drag2 = Drag(canvas, drag=0.002, before_time=70)
-freeze = Drag(canvas, drag=1.0, after_time=70, before_time=72)
-relax = Relax(canvas, strength=0.1, radius=10.0, before_time=70)
-vortex = Vortex(canvas.canvas_size_mm[0]/2, canvas.canvas_size_mm[1]/2, strength=0.1, after_time=70)
+drag = Drag(canvas, drag=0.001 )
 snapshot_images = []
-def enable_attractors(time_step):
-    if time_step == 70:
-        SetAsAttractor(canvas, attractor=1.0, chance=0.5)
-        #SetImpulse(canvas, impulse=(0.0, -1.0))
-        SetMass(canvas, mass=1.0)
-
 def snapshot_image(time_step):
     r = Render(canvas, dpi=150)
     r.render(points=True)
     snapshot_images.append(r.image)
     r.image.save(f"temp/_{time_step}.png")
 
-Simulation(canvas,  forces=[ relax, drag2, turbulence, isometric_constraint, border_drag], events=[], dt=0.1, start_lines_at=70, type="concurrent", 
-           collision_detection=True, 
+
+
+
+for y in np.arange(canvas.top_left[1], canvas.bottom_right[1], 5):
+    add_point_tool.add_point(canvas.top_left[0], y)
+
+SetImpulse(canvas, impulse=(0.0, 0.0))
+ApplyColor(canvas, color="#ffffff", chance=1.0)
+
+SetMass(canvas, mass=2.0)
+sim_a = Simulation(canvas,  forces=[ follow_edge,  relax], events=[], dt=0.1, 
+           start_lines_at=0, 
+           type="concurrent", 
+           collision_detection=False, 
            collision_type="line", 
            collision_damping=1.0,
            collision_flip_mass=False,
-           on_step_end=[snapshot_image, enable_attractors]
-           ).simulate(250)
+           on_step_end=[snapshot_image]
+           )
+sim_a.simulate(900)
+
+canvas.clear("points")
+for y in np.arange(canvas.bottom_right[1], canvas.top_left[1], -5):
+    add_point_tool.add_point(canvas.bottom_right[0], y)
+
+SetImpulse(canvas, impulse=(0.0, 0.0))
+ApplyColor(canvas, color="#ffffff", chance=1.0)
+SetMass(canvas, mass=2.0)
+sim_b = Simulation(canvas,  forces=[ follow_edge_back,  relax ], events=[], dt=0.1, 
+           start_lines_at=0, 
+           type="concurrent", 
+           collision_detection=False, 
+           collision_type="line", 
+           collision_damping=1.0,
+           collision_flip_mass=False,
+           on_step_end=[snapshot_image]
+           )
+sim_b.grid = {
+    cell: [(x1, y1, x2, y2, 0) for x1, y1, x2, y2, _ in lines] 
+    for cell, lines in sim_a.grid.items()
+} # ensure that we retain collision grid from sim_a and reset time stemps on those lines
+sim_b.simulate(900)
+canvas.clear("points")
+
 
 if len(snapshot_images) > 0:
     # add reverse list to the 

@@ -30,6 +30,8 @@ Simulation(canvas,  forces=[attractor], dt=0.1, start_lines_at=100, type="concur
            collision_damping=1.0,
            collision_flip_mass=False,
            ).simulate(3000)
+
+Optimizations.sort_lines(canvas)  
 Optimizations.merge_lines(canvas, tolerance=0.02)
 
 canvas.crop()

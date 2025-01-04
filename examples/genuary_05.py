@@ -23,10 +23,9 @@ ApplyColor(canvas, color="#ff0000", chance=0.1)
 
 SetMass(canvas, mass=4.0)
 SetMass(canvas, mass=-4.0, chance=0.5)
-#SetAsAttractor(canvas, attractor=1.0)
-SetImpulse(canvas, impulse=(0.3, 0.3), randomize=True)
-
-isometric_constraint = IsometricConstraint(canvas, angle_degrees=30, threshold=0.2, strength=1.0)
+SetImpulse(canvas, impulse=(10, 10), randomize=True)
+SetAsAttractor(canvas, attractor=1.0)
+isometric_constraint = IsometricConstraint(canvas, angle_degrees=30, threshold=1.0, strength=1.0)
 snapshot_images = []
 def snapshot_image(time_step):
     r = Render(canvas, dpi=150)
@@ -38,7 +37,7 @@ Simulation(canvas,  forces=[isometric_constraint], events=[], dt=0.1, start_line
            collision_type="line", 
            collision_damping=1.0,
            collision_flip_mass=False,
-           on_step_end=[snapshot_image]
+           on_step_end=[]
            ).simulate(200)
 
 if len(snapshot_images) > 0:

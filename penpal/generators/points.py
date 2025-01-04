@@ -11,10 +11,16 @@ class PointGrid:
         self.hspacing = hspacing
         self.additional_margin = additional_margin
         self.hex_pattern = hex_pattern
+        self.start_id = 0 
+        for op in self.canvas.draw_stack:
+            if op["type"] == "point":
+                if op["pid"] > self.start_id:
+                    self.start_id = op["pid"]
+
 
     def generate(self, density=1.0):
         is_odd = True
-        pid = 0
+        pid = self.start_id
         for y in np.arange(self.canvas.margin + self.additional_margin, self.canvas.canvas_size_mm[1] - self.canvas.margin - self.additional_margin, self.vspacing):
             for x in np.arange(self.canvas.margin + self.additional_margin, self.canvas.canvas_size_mm[0] - self.canvas.margin - self.additional_margin, self.hspacing):
                 if self.hex_pattern:    
@@ -26,7 +32,18 @@ class PointGrid:
                     self.canvas.point(x, y, pid=pid)
                 pid += 1
             is_odd = not is_odd
+class AddPointTool:
+    def __init__(self, canvas):
+        self.canvas = canvas    
+        self.start_id = 0 
+        for op in self.canvas.draw_stack:
+            if op["type"] == "point":
+                if op["pid"] > self.start_id:
+                    self.start_id = op["pid"]
 
+    def add_point(self, x, y):
+        self.canvas.point(x, y, pid=self.start_id)
+        self.start_id += 1
 
 class ScatterPoints:
     def __init__(self, canvas):

@@ -72,12 +72,20 @@ class Canvas:
         self._point(x, y, color, thickness, pid)
     
     def clear(self, type="all", chance=1.0):
-        if type == "all":
-            self.draw_stack = [op for op in self.draw_stack if random.random() < chance]
-        elif type == "points":
-            self.draw_stack = [op for op in self.draw_stack if op["type"] != "point" or random.random() < chance]
-        elif type == "lines":
-            self.draw_stack = [op for op in self.draw_stack if op["type"] != "line" or random.random() < chance]
+        if chance < 1.0:
+            if type == "all":
+                self.draw_stack = [op for op in self.draw_stack if random.random() < chance]
+            elif type == "points":
+                self.draw_stack = [op for op in self.draw_stack if op["type"] != "point" or random.random() < chance]
+            elif type == "lines":
+                self.draw_stack = [op for op in self.draw_stack if op["type"] != "line" or random.random() < chance]
+        else:
+            if type == "all":
+                self.draw_stack = []
+            elif type == "points":
+                self.draw_stack = [op for op in self.draw_stack if op["type"] != "point"]
+            elif type == "lines":
+                self.draw_stack = [op for op in self.draw_stack if op["type"] != "line"]
 
     def merge_with(self, other):
         self.draw_stack.extend(other.draw_stack)
