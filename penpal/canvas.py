@@ -85,6 +85,8 @@ class Canvas:
         self._point(x, y, color, thickness, pid)
     
     def max_pid(self):
+        if len(self.draw_stack) == 0:
+            return 0
         return max([op["pid"] for op in self.draw_stack])
     
     def clear(self, type="all", chance=1.0):
@@ -202,6 +204,30 @@ class Canvas:
             end   = points[i + 1]
             self._line(start[0], start[1], end[0], end[1], color, thickness)
 
+    def circle(self, x, y, r, step_size=2.0, color=None, thickness=1.0, filled=False, fill_density=1.0, fill_direction='horizontal', outline=True):
+        if not outline:
+            return
+        
+        pid = self.max_pid() + 1
+        points = []
+        
+        # Generate all points first
+        for i in np.arange(0.0, 360.0, step_size):
+            px = x + r * np.cos(i * np.pi / 180)
+            py = y + r * np.sin(i * np.pi / 180)
+            points.append((px, py))
+        
+        # Add the first point again to close the loop properly
+        points.append(points[0])
+        
+        # Create lines between consecutive points
+        for i in range(len(points) - 1):
+            self._line(
+                points[i][0], points[i][1],
+                points[i+1][0], points[i+1][1],
+                color, thickness, pid
+            )
+        
     def box(self,
             x, y,
             w, h,

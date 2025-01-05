@@ -1,6 +1,6 @@
 import random
 
-class ApplyNoise:
+class Noise:
     def __init__(self, canvas, noise_x_level=0.5, noise_y_level=0.5):
         self.canvas = canvas
         self.noise_x_level = noise_x_level
