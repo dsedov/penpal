@@ -5,7 +5,7 @@ os.sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from penpal.generators.points import PointGrid, AddPointTool
 from penpal.operators.color import ApplyColor
 from penpal.operators.offset import Offset
-from penpal.utils import Optimizations, save_as_video
+from penpal.utils import Optimizations
 from penpal.simulation.simulation import SetMass, SetImpulse, Simulation, SetAsAttractor
 from penpal.simulation.constraint import IsometricConstraint
 from penpal.simulation.rule import Rule
@@ -70,14 +70,14 @@ groups_medium = Group(canvas).where(lambda op: op["type"] == "line" and op["y1"]
 groups_small  = Group(canvas).where(lambda op: op["type"] == "line" and op["y1"] < canvas.bottom and op["y1"] > canvas.top + 150).expand_pids()
 groups_small.remove_pids(groups_medium.all_pids())
 groups_medium.remove_pids(groups_small.all_pids())
-Flatten(canvas, axis="x", strength=0.9, group=groups_medium).apply()
+Flatten(canvas, axis="x", strength=1.0, group=groups_medium).apply()
 
 Smooth(canvas, strength=0.5, iterations=4, group=groups_medium, contraction=0.01).apply()
 Offset(canvas, offset_distance=0.4, count=12, group=groups_medium).apply()
 Offset(canvas, offset_distance=0.5, count=3, group=groups_small).apply()
 
-Optimizations.sort_lines(canvas)    
-Optimizations.merge_lines(canvas, tolerance=0.1)
+#Optimizations.sort_lines(canvas)    
+#Optimizations.merge_lines(canvas, tolerance=0.1)
 
 canvas.crop()
 canvas.clear("points")
@@ -86,7 +86,7 @@ canvas.respect_margin = False
 svg = SVG("signature25.svg")
 svg.draw(canvas, canvas.canvas_size_mm[0] - canvas.margin - 48, canvas.canvas_size_mm[1] - canvas.margin+4, scale=1.5)
 svg_text = SVGFont("alphabet.svg")
-svg_text.draw(canvas, canvas.margin+72, 5, "GENUARY 05".upper(), scale=0.8, stroke_color=None, fill_color="#ffffff")
+svg_text.draw(canvas, canvas.margin+72, 5, "GENUARY 06".upper(), scale=0.8, stroke_color=None, fill_color="#ffffff")
 
 
 #render.save_video(folder="temp", name="output_genuary_06", fps=20)
