@@ -24,51 +24,35 @@ from penpal.generators import ImageField
 from penpal.simulation.drag import Drag, BorderDrag
 from penpal.simulation.events import FlipMass
 from penpal import Canvas, Render, SVG, GCode, SVGFont
-from penpal.operators import DifferentialGrowth, Noise
-
 
 canvas = Canvas(canvas_size_mm=(229.0, 305.0), paper_color="black", pen_color="white", respect_margin=True)
 render = Render(canvas)
 
-temp_canvas = Canvas(canvas_size_mm=(229.0, 305.0), paper_color="black", pen_color="white", respect_margin=False)
+svg = SVG("examples/temp/SEDOV_KeyboardV1_PCB-F_Cu.svg")
+svg.draw(canvas, canvas.margin, canvas.margin, scale=0.6, pen_width=0.35,  override_stroke_color="#1515ff")
 
-# Start with more initial points
-temp_canvas.circle(
-    temp_canvas.canvas_size_mm[0]/2, 
-    temp_canvas.canvas_size_mm[1]/2, 
-    50, 
-    step_size=2.0,  # Smaller step size = more points
-    color="#ffffff", 
-    thickness=0.5
-)
-dg = DifferentialGrowth(
-    temp_canvas,
-    split_distance=2.0,          # Make this much smaller
-    repulsion_radius=12.0,     
-    repulsion_strength=4.0,      # Make forces much stronger
-    attraction_strength=0.8,     
-    alignment_strength=0.1,      
-    damping=0.8,               
-    relax_iterations=1
-)
+svg = SVG("examples/temp/SEDOV_KeyboardV1_PCB-B_Cu.svg")
+svg.draw(canvas, canvas.margin, canvas.margin+50, scale=0.6, pen_width=0.35,  override_stroke_color="#15ff15")
 
-# Keep iterations the same
-for _ in range(20):
-    dg.apply()
+svg = SVG("examples/temp/SEDOV_KeyboardV1_PCB-B_Silkscreen.svg")
+svg.draw(canvas, canvas.margin, canvas.margin+100, scale=0.6, pen_width=0.35,  override_stroke_color="#ff1515")
 
-canvas.merge_with(temp_canvas)
+svg = SVG("examples/temp/SEDOV_KeyboardV1_PCB-F_Silkscreen.svg")
+svg.draw(canvas, canvas.margin, canvas.margin+150, scale=0.6, pen_width=0.35,  override_stroke_color="#1515ff")
 
-#Smooth(canvas, strength=0.5, iterations=2, contraction=0.01).apply()
+svg = SVG("examples/temp/SEDOV_KeyboardV1_PCB-B_Cu.svg")
+svg.draw(canvas, canvas.margin-50, canvas.margin-130, scale=2.6, pen_width=0.35,  override_stroke_color="#ffffff")
 #Optimizations.sort_lines(canvas)    
-#Optimizations.merge_lines(canvas, tolerance=0.1)
+Optimizations.merge_lines(canvas, tolerance=0.1)
 
+canvas.crop()
 canvas.clear("points")
 canvas.respect_margin = False
 
 svg = SVG("signature25.svg")
 svg.draw(canvas, canvas.canvas_size_mm[0] - canvas.margin - 48, canvas.canvas_size_mm[1] - canvas.margin+4, scale=1.5)
 svg_text = SVGFont("alphabet.svg")
-svg_text.draw(canvas, canvas.margin+72, 5, "GENUARY 08".upper(), scale=0.8, stroke_color=None, fill_color="#ffffff")
+svg_text.draw(canvas, canvas.margin+72, 5, "GENUARY 07".upper(), scale=0.8, stroke_color=None, fill_color="#ffffff")
 
 
 #render.save_video(folder="temp", name="output_genuary_06", fps=20)
@@ -77,4 +61,4 @@ render.show()
 
 gcode = GCode(canvas)
 gcode.generate()
-gcode.save("sedov_genuary_06.gcode")
+gcode.save("sedov_genuary_07.gcode")

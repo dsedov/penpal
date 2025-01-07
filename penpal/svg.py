@@ -159,7 +159,7 @@ class SVG:
                         sx_t, sy_t = SVG.transform_point(sx, sy, x, y, scale, flip_x, flip_y)
                         ex_t, ey_t = SVG.transform_point(ex, ey, x, y, scale, flip_x, flip_y)
 
-                        canvas.line(sx_t, sy_t, ex_t, ey_t, color=stroke_color)
+                        canvas.line(sx_t, sy_t, ex_t, ey_t, color=stroke_color, thickness=pen_width)
                     
                     elif isinstance(segment, CubicBezier):
                         # Original points
@@ -180,7 +180,8 @@ class SVG:
                             c1x_t, c1y_t,
                             c2x_t, c2y_t,
                             ex_t,  ey_t,
-                            color=stroke_color
+                            color=stroke_color,
+                            thickness=pen_width
                         )
 
                     elif isinstance(segment, Arc):
@@ -214,7 +215,7 @@ class SVG:
                         for i in range(len(arc_points) - 1):
                             sx_t, sy_t = arc_points[i]
                             ex_t, ey_t = arc_points[i + 1]
-                            canvas.line(sx_t, sy_t, ex_t, ey_t, color=stroke_color)
+                            canvas.line(sx_t, sy_t, ex_t, ey_t, color=stroke_color, thickness=pen_width)
 
                     elif isinstance(segment, Path):
                         print(f"path: {segment}")
@@ -225,7 +226,7 @@ class SVG:
                         sx_t, sy_t = SVG.transform_point(sx, sy, x, y, scale, flip_x, flip_y)
                         ex_t, ey_t = SVG.transform_point(ex, ey, x, y, scale, flip_x, flip_y)
                         
-                        canvas.line(sx_t, sy_t, ex_t, ey_t, color=stroke_color)
+                        canvas.line(sx_t, sy_t, ex_t, ey_t, color=stroke_color, thickness=pen_width)
                     
                     else:
                         print(f"unknown segment: {type(segment)}")

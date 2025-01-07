@@ -103,24 +103,22 @@ class DifferentialGrowth:
         return edges
 
     def _split_long_edges(self, nodes, edges):
-        """Split edges that exceed split_distance, but more conservatively"""
+        """Split edges that exceed split_distance with debug output"""
         new_edges = []
         new_nodes = nodes[:]
         
-        # Find the average edge length to use as a reference
-        total_length = 0
+        # Debug: Check current edge lengths
         for edge in edges:
             n1, n2 = edge
             p1 = nodes[n1]["pos"]
             p2 = nodes[n2]["pos"]
             dx = p2[0] - p1[0]
             dy = p2[1] - p1[1]
-            total_length += math.hypot(dx, dy)
-        avg_length = total_length / len(edges)
-        
-        # Only split if edge is significantly longer than average
-        split_threshold = max(self.split_distance, 1.5 * avg_length)
-        
+            dist = math.hypot(dx, dy)
+            # Debug print if any edge is longer than split distance
+            if dist > self.split_distance:
+                print(f"Found edge to split: length {dist:.2f} > split_distance {self.split_distance}")
+
         for edge in edges:
             n1, n2 = edge
             p1 = new_nodes[n1]["pos"]
@@ -129,7 +127,7 @@ class DifferentialGrowth:
             dy = p2[1] - p1[1]
             dist = math.hypot(dx, dy)
             
-            if dist > split_threshold:
+            if dist > self.split_distance:
                 # Create new node at midpoint
                 mx = 0.5 * (p1[0] + p2[0])
                 my = 0.5 * (p1[1] + p2[1])
@@ -137,13 +135,14 @@ class DifferentialGrowth:
                 new_nodes.append({"pos": [mx, my], "fixed": False})
                 new_edges.append([n1, new_index])
                 new_edges.append([new_index, n2])
+                print(f"Split edge into two segments: {dist:.2f} -> {dist/2:.2f}")
             else:
                 new_edges.append(edge)
         
         return new_nodes, new_edges
 
     def _apply_forces(self, nodes, edges):
-        """Growth with controlled spread"""
+        """Growth with explicit distortion regions"""
         movements = [[0.0, 0.0] for _ in nodes]
         n = len(nodes)
         
@@ -151,125 +150,53 @@ class DifferentialGrowth:
         center_x = sum(n["pos"][0] for n in nodes) / n
         center_y = sum(n["pos"][1] for n in nodes) / n
         
-        # Calculate current average segment length
-        total_length = 0
-        for (i1, i2) in edges:
-            x1, y1 = nodes[i1]["pos"]
-            x2, y2 = nodes[i2]["pos"]
-            dx = x2 - x1
-            dy = y2 - y1
-            total_length += math.hypot(dx, dy)
-        avg_length = total_length / len(edges) if edges else 1.0
+        # Pick a section of the circle to distort (30-degree arc)
+        distortion_center = random.random() * 2 * math.pi
+        distortion_width = math.pi / 6  # 30 degrees
         
-        # Calculate growth probabilities based on neighbors
-        growth_active = [False] * n
-        
-        # Start with one random active point if none exist
-        if not any(growth_active):
-            start_idx = random.randint(0, n-1)
-            growth_active[start_idx] = True
-        
-        # Spread activation to neighbors with probability
         for i in range(n):
-            if growth_active[i]:
-                prev_i = (i - 1) % n
-                next_i = (i + 1) % n
-                if random.random() < 0.3:  # 30% chance to spread
-                    growth_active[prev_i] = True
-                if random.random() < 0.3:
-                    growth_active[next_i] = True
-
-        # 1. Repulsion forces with growth control
-        rr_sq = self.repulsion_radius ** 2
-        for i in range(n):
-            if not growth_active[i]:
-                continue
+            x, y = nodes[i]["pos"]
+            # Calculate angle from center
+            angle = math.atan2(y - center_y, x - center_x)
+            
+            # Check if point is in distortion region
+            angle_diff = abs((angle - distortion_center + math.pi) % (2 * math.pi) - math.pi)
+            if angle_diff < distortion_width:
+                # Calculate outward and tangential forces
+                dist = math.hypot(x - center_x, y - center_y)
                 
-            x1, y1 = nodes[i]["pos"]
-            # Outward force from center
-            dx = x1 - center_x
-            dy = y1 - center_y
-            dist = math.hypot(dx, dy)
-            if dist > 1e-8:
-                force = self.repulsion_strength
-                movements[i][0] += (dx / dist) * force
-                movements[i][1] += (dy / dist) * force
+                # Strong outward force
+                outward_x = (x - center_x) / dist * self.repulsion_strength * 2.0
+                outward_y = (y - center_y) / dist * self.repulsion_strength * 2.0
                 
-            # Local repulsion
-            for j in range(n):
-                if i != j:
-                    x2, y2 = nodes[j]["pos"]
-                    dx = x2 - x1
-                    dy = y2 - y1
-                    dist_sq = dx*dx + dy*dy
-                    if dist_sq < rr_sq and dist_sq > 1e-8:
-                        dist = math.sqrt(dist_sq)
-                        force = self.repulsion_strength * (self.repulsion_radius - dist) / dist
-                        fx = (dx / dist) * force
-                        fy = (dy / dist) * force
-                        movements[i][0] -= fx
-                        movements[i][1] -= fy
-                        movements[j][0] += fx
-                        movements[j][1] += fy
+                # Tangential force (perpendicular to radius)
+                tangent_x = -outward_y
+                tangent_y = outward_x
+                
+                # Combine forces with falloff based on distance from distortion center
+                falloff = 1.0 - (angle_diff / distortion_width)
+                movements[i][0] += (outward_x + tangent_x * 0.5) * falloff
+                movements[i][1] += (outward_y + tangent_y * 0.5) * falloff
 
-        # 2. Attraction forces (maintain connections)
+        # Maintain connections
         for (i1, i2) in edges:
             x1, y1 = nodes[i1]["pos"]
             x2, y2 = nodes[i2]["pos"]
             dx = x2 - x1
             dy = y2 - y1
             dist = math.hypot(dx, dy)
-            if dist > 1e-8:
-                # Stronger attraction for active regions
-                strength = self.attraction_strength
-                if growth_active[i1] or growth_active[i2]:
-                    strength *= 0.5  # Reduce attraction in growing regions
-                
-                force = strength * (dist / avg_length)
-                fx = (dx / dist) * force
-                fy = (dy / dist) * force
-                movements[i1][0] += fx
-                movements[i1][1] += fy
-                movements[i2][0] -= fx
-                movements[i2][1] -= fy
+            if dist > self.split_distance:
+                force = (dist - self.split_distance) * self.attraction_strength
+                movements[i1][0] += dx * force / dist
+                movements[i1][1] += dy * force / dist
+                movements[i2][0] -= dx * force / dist
+                movements[i2][1] -= dy * force / dist
 
-        # 3. Alignment forces (smooth curve)
-        for i in range(n):
-            prev_i = (i - 1) % n
-            next_i = (i + 1) % n
-            
-            x_prev = nodes[prev_i]["pos"][0]
-            y_prev = nodes[prev_i]["pos"][1]
-            x_curr = nodes[i]["pos"][0]
-            y_curr = nodes[i]["pos"][1]
-            x_next = nodes[next_i]["pos"][0]
-            y_next = nodes[next_i]["pos"][1]
-            
-            # Move towards midpoint of neighbors
-            mx = (x_prev + x_next) * 0.5 - x_curr
-            my = (y_prev + y_next) * 0.5 - y_curr
-            
-            # Reduce alignment in active regions
-            strength = self.alignment_strength
-            if growth_active[i]:
-                strength *= 0.5
-                
-            movements[i][0] += mx * strength
-            movements[i][1] += my * strength
-
-        # Apply movements with bounds
-        max_move = avg_length * 0.5  # Limit per-step movement
+        # Apply movements
         for i in range(n):
             if not nodes[i]["fixed"]:
-                dx = movements[i][0] * self.damping
-                dy = movements[i][1] * self.damping
-                # Clamp movement
-                dist = math.hypot(dx, dy)
-                if dist > max_move:
-                    dx = (dx / dist) * max_move
-                    dy = (dy / dist) * max_move
-                nodes[i]["pos"][0] += dx
-                nodes[i]["pos"][1] += dy
+                nodes[i]["pos"][0] += movements[i][0] * self.damping
+                nodes[i]["pos"][1] += movements[i][1] * self.damping
 
         return nodes
 

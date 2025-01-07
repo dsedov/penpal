@@ -18,6 +18,8 @@ class Render:
                 thickness_px = self._mm_to_pixels(op["thickness"])
                 draw = ImageDraw.Draw(self.image)
                 color = op["color"] if op["color"] else self.canvas.pen_color
+                if color == "none":
+                    color = "#ffffff"
                 draw.line([start_point_px, end_point_px], fill=color, width=thickness_px)
 
             elif op["type"] == "point" and points:
