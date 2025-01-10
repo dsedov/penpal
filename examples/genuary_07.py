@@ -59,6 +59,6 @@ svg_text.draw(canvas, canvas.margin+72, 5, "GENUARY 07".upper(), scale=0.8, stro
 render.render()
 render.show()
 
-gcode = GCode(canvas)
+gcode = GCode(canvas, move_speed=10000, draw_speed=5000)
 gcode.generate()
 gcode.save("sedov_genuary_07.gcode")

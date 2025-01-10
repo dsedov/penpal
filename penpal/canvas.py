@@ -19,6 +19,14 @@ class Canvas:
         self.plotter_buffer_draw = ImageDraw.Draw(self.plotter_buffer)
 
     @property
+    def width(self):
+        return self.canvas_size_mm[0]
+    
+    @property
+    def height(self):
+        return self.canvas_size_mm[1]
+
+    @property
     def plottable_size(self):
         return (self.canvas_size_mm[0] - self.margin*2, self.canvas_size_mm[1] - self.margin*2)
     

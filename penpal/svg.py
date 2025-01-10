@@ -235,8 +235,91 @@ class SVG:
                          stroke_color=fill_color, x=x, y=y, scale=scale, 
                          flip_x=flip_x, flip_y=flip_y)
 
-    def save(self, canvas):
-        pass
+    def save(self, canvas, filename):
+        """
+        Saves the drawing operations as SVG files, creating separate files for each color
+        similar to how GCode class handles different colors.
+        
+        Args:
+            canvas: The canvas object containing the draw stack
+            filename: Base filename to save the SVG(s)
+        """
+        # Group operations by color
+        grouped_by_color = {}
+        for op in canvas.draw_stack:
+            if op["color"] not in grouped_by_color:
+                grouped_by_color[op["color"]] = []
+            grouped_by_color[op["color"]].append(op)
+        
+        # Remove extension from filename
+        filename_base = ".".join(filename.split(".")[:-1])
+        
+        for color in grouped_by_color:
+            operations = grouped_by_color[color]
+            
+            # Generate SVG content
+            svg_lines = []
+            svg_lines.append('<?xml version="1.0" encoding="UTF-8"?>')
+            svg_lines.append('<svg xmlns="http://www.w3.org/2000/svg" version="1.1" ' +
+                            f'width="{canvas.canvas_size_mm[0]}mm" ' +
+                            f'height="{canvas.canvas_size_mm[1]}mm" ' +
+                            'viewBox="0 0 {canvas.canvas_size_mm[0]} {canvas.canvas_size_mm[1]}">')
+            
+            # Add style definitions
+            svg_lines.append('<style type="text/css">')
+            svg_lines.append('  .plotted-line { stroke-linecap: round; }')
+            svg_lines.append('</style>')
+            
+            # Process each drawing operation
+            for op in operations:
+                if op["type"] == "line":
+                    svg_lines.append(
+                        f'  <line class="plotted-line" ' +
+                        f'x1="{op["x1"]:.2f}" ' +
+                        f'y1="{op["y1"]:.2f}" ' +
+                        f'x2="{op["x2"]:.2f}" ' +
+                        f'y2="{op["y2"]:.2f}" ' +
+                        f'stroke="{color if color else "black"}" ' +
+                        f'stroke-width="{op.get("thickness", 0.5)}"/>'
+                    )
+                elif op["type"] == "point":
+                    # For points, create a small circle
+                    svg_lines.append(
+                        f'  <circle ' +
+                        f'cx="{op["x"]:.2f}" ' +
+                        f'cy="{op["y"]:.2f}" ' +
+                        f'r="{op.get("thickness", 0.5)}" ' +
+                        f'fill="{color if color else "black"}"/>'
+                    )
+                elif op["type"] == "cubic_bezier":
+                    svg_lines.append(
+                        f'  <path class="plotted-line" ' +
+                        f'd="M {op["x1"]:.2f},{op["y1"]:.2f} ' +
+                        f'C {op["cx1"]:.2f},{op["cy1"]:.2f} ' +
+                        f'{op["cx2"]:.2f},{op["cy2"]:.2f} ' +
+                        f'{op["x2"]:.2f},{op["y2"]:.2f}" ' +
+                        f'stroke="{color if color else "black"}" ' +
+                        f'fill="none" ' +
+                        f'stroke-width="{op.get("thickness", 0.5)}"/>'
+                    )
+            
+            svg_lines.append('</svg>')
+            
+            # Create filename with color
+            if color:
+                color_str = color.replace('#', '')
+                try:
+                    from penpal.utils import hex_to_color_name
+                    color_name = hex_to_color_name(color)
+                    output_filename = f"{filename_base}_{color_str}_{color_name}.svg"
+                except ImportError:
+                    output_filename = f"{filename_base}_{color_str}.svg"
+            else:
+                output_filename = f"{filename_base}_unknown.svg"
+            
+            # Write the SVG file
+            with open(output_filename, 'w') as f:
+                f.write('\n'.join(svg_lines))
 
     def parse_css_classes(self, svg_content):
         """

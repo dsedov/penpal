@@ -2,14 +2,14 @@ import random, re
 from penpal.utils import hex_to_color_name
 
 class GCode:
-    def __init__(self, canvas, draw_speed=8000):
+    def __init__(self, canvas, draw_speed=8000, move_speed=30000):
         self.canvas = canvas
         self.state_x = 0
         self.state_y = 0
         self.state_z = 1.0
         self.precision = 0.01
         self.draw_speed = draw_speed
-        self.move_speed = 30000
+        self.move_speed = move_speed
         self.gcode = []
         self.verbose = True
         self.pen_up_z = 1.0
