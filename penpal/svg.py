@@ -237,13 +237,16 @@ class SVG:
 
     def save(self, canvas, filename):
         """
-        Saves the drawing operations as SVG files, creating separate files for each color
-        similar to how GCode class handles different colors.
+        Saves the drawing operations as SVG files, creating separate files for each color.
+        Converts millimeter coordinates to pixels (96 DPI) for better compatibility with SVG editors.
         
         Args:
             canvas: The canvas object containing the draw stack
             filename: Base filename to save the SVG(s)
         """
+        # MM to PX conversion (96 DPI)
+        MM_TO_PX = 3.7795275591
+
         # Group operations by color
         grouped_by_color = {}
         for op in canvas.draw_stack:
@@ -257,13 +260,17 @@ class SVG:
         for color in grouped_by_color:
             operations = grouped_by_color[color]
             
+            # Convert canvas size to pixels
+            canvas_width_px = canvas.canvas_size_mm[0] * MM_TO_PX
+            canvas_height_px = canvas.canvas_size_mm[1] * MM_TO_PX
+            
             # Generate SVG content
             svg_lines = []
             svg_lines.append('<?xml version="1.0" encoding="UTF-8"?>')
             svg_lines.append('<svg xmlns="http://www.w3.org/2000/svg" version="1.1" ' +
                             f'width="{canvas.canvas_size_mm[0]}mm" ' +
                             f'height="{canvas.canvas_size_mm[1]}mm" ' +
-                            'viewBox="0 0 {canvas.canvas_size_mm[0]} {canvas.canvas_size_mm[1]}">')
+                            f'viewBox="0 0 {canvas_width_px} {canvas_height_px}">')
             
             # Add style definitions
             svg_lines.append('<style type="text/css">')
@@ -275,32 +282,32 @@ class SVG:
                 if op["type"] == "line":
                     svg_lines.append(
                         f'  <line class="plotted-line" ' +
-                        f'x1="{op["x1"]:.2f}" ' +
-                        f'y1="{op["y1"]:.2f}" ' +
-                        f'x2="{op["x2"]:.2f}" ' +
-                        f'y2="{op["y2"]:.2f}" ' +
+                        f'x1="{op["x1"] * MM_TO_PX:.2f}" ' +
+                        f'y1="{op["y1"] * MM_TO_PX:.2f}" ' +
+                        f'x2="{op["x2"] * MM_TO_PX:.2f}" ' +
+                        f'y2="{op["y2"] * MM_TO_PX:.2f}" ' +
                         f'stroke="{color if color else "black"}" ' +
-                        f'stroke-width="{op.get("thickness", 0.5)}"/>'
+                        f'stroke-width="{op.get("thickness", 0.5) * MM_TO_PX}"/>'
                     )
                 elif op["type"] == "point":
                     # For points, create a small circle
                     svg_lines.append(
                         f'  <circle ' +
-                        f'cx="{op["x"]:.2f}" ' +
-                        f'cy="{op["y"]:.2f}" ' +
-                        f'r="{op.get("thickness", 0.5)}" ' +
+                        f'cx="{op["x"] * MM_TO_PX:.2f}" ' +
+                        f'cy="{op["y"] * MM_TO_PX:.2f}" ' +
+                        f'r="{op.get("thickness", 0.5) * MM_TO_PX}" ' +
                         f'fill="{color if color else "black"}"/>'
                     )
                 elif op["type"] == "cubic_bezier":
                     svg_lines.append(
                         f'  <path class="plotted-line" ' +
-                        f'd="M {op["x1"]:.2f},{op["y1"]:.2f} ' +
-                        f'C {op["cx1"]:.2f},{op["cy1"]:.2f} ' +
-                        f'{op["cx2"]:.2f},{op["cy2"]:.2f} ' +
-                        f'{op["x2"]:.2f},{op["y2"]:.2f}" ' +
+                        f'd="M {op["x1"] * MM_TO_PX:.2f},{op["y1"] * MM_TO_PX:.2f} ' +
+                        f'C {op["cx1"] * MM_TO_PX:.2f},{op["cy1"] * MM_TO_PX:.2f} ' +
+                        f'{op["cx2"] * MM_TO_PX:.2f},{op["cy2"] * MM_TO_PX:.2f} ' +
+                        f'{op["x2"] * MM_TO_PX:.2f},{op["y2"] * MM_TO_PX:.2f}" ' +
                         f'stroke="{color if color else "black"}" ' +
                         f'fill="none" ' +
-                        f'stroke-width="{op.get("thickness", 0.5)}"/>'
+                        f'stroke-width="{op.get("thickness", 0.5) * MM_TO_PX}"/>'
                     )
             
             svg_lines.append('</svg>')
